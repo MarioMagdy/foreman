@@ -1,6 +1,6 @@
 ---
 name: foreman
-description: Use when an agreed plan has to be executed by delegated agents and the owner will review it — building a plan's milestones, running a multi-stage build with subagents, "take this plan and build it", "run it overnight", "orchestrate this", or when the owner asks where the work is, to test it, or for a test plan. Also use before answering any question about a build the owner is about to review.
+description: Use when an agreed plan has to be executed by delegated agents and the owner will review it — building a plan's milestones, running a multi-stage build with subagents, "take this plan and build it", "run it overnight", "orchestrate this", or when the owner asks where the work is, to test it, or for a test plan. Also use before answering any question about a build the owner is about to review, and when the owner asks for a dashboard, tracker or progress page for a build.
 ---
 
 # Foreman — a plan becomes milestones, stages, PRs, and something the owner can test
