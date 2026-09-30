@@ -1,0 +1,11 @@
+# owner-specific overlay (see LOCAL.md.example)
+LOCAL.md
+# dev docs (RED/GREEN evidence, name real projects)
+BASELINE.md
+GREEN.md
+# briefs, reports, evidence, scratch
+_briefs/
+_runs/
+_scratch/
+node_modules/
+*.log

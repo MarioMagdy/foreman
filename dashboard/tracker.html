@@ -1,0 +1,827 @@
+<title>Foreman Build Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: masthead (focus / waiting-on), milestone strip, dependency graph, one section per milestone with its
+   stages as clickable rows and "add here" slots between them, overall log. Click any milestone or stage for a
+   detail sheet with its fields, iterations (build / review / fix rounds) and its own log. Data: the artifact db
+   (see SCHEMA.md); `?demo` / `#demo` / the "Show sample data" button render the embedded sample instead. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --ink: #1a2230; --muted: #5c6577; --line: #dce1e8;
+  --accent: #1f5c7a; --accent-soft: #e2edf3;
+  --added: #9a3d6e; --added-soft: #f7e6ef;          /* anything created after planning */
+  --st-planned: #eceef2;   --st-planned-fg: #566074;
+  --st-briefed: #e5ebf7;   --st-briefed-fg: #2c4a86;
+  --st-running: #d8ebf3;   --st-running-fg: #14506b;
+  --st-verifying: #fbefd6; --st-verifying-fg: #74500f;
+  --st-review: #ebe5f7;    --st-review-fg: #533a8a;
+  --st-fixing: #fde4da;    --st-fixing-fg: #8a3a1c;
+  --st-ready: #ddf1e2;     --st-ready-fg: #1e6a34;
+  --st-merged: #2f7d46;    --st-merged-fg: #ffffff;
+  --st-blocked: #f9dcdc;   --st-blocked-fg: #9b2226;
+  --v-go: #1e6a34; --v-nogo: #9b2226; --v-mid: #74500f;
+  --edge: #b7bfcc; --scrim: rgba(20, 26, 36, .45);
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --surface: #19202a; --ink: #e5e9ef; --muted: #9aa3b2; --line: #2b3340;
+    --accent: #6fb3d2; --accent-soft: #1a3240;
+    --added: #e493bd; --added-soft: #3a1f2e;
+    --st-planned: #252c37;   --st-planned-fg: #a7afbd;
+    --st-briefed: #1f2b42;   --st-briefed-fg: #a9c1ee;
+    --st-running: #173544;   --st-running-fg: #9fd6ec;
+    --st-verifying: #3a2f17; --st-verifying-fg: #f0cf85;
+    --st-review: #2c2440;    --st-review-fg: #c9b6f2;
+    --st-fixing: #3d2419;    --st-fixing-fg: #f4b597;
+    --st-ready: #173323;     --st-ready-fg: #9bdcae;
+    --st-merged: #3f9a5b;    --st-merged-fg: #0e1a12;
+    --st-blocked: #3d1d1f;   --st-blocked-fg: #f3a5a8;
+    --v-go: #9bdcae; --v-nogo: #f3a5a8; --v-mid: #f0cf85;
+    --edge: #465062; --scrim: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --surface: #19202a; --ink: #e5e9ef; --muted: #9aa3b2; --line: #2b3340;
+  --accent: #6fb3d2; --accent-soft: #1a3240;
+  --added: #e493bd; --added-soft: #3a1f2e;
+  --st-planned: #252c37;   --st-planned-fg: #a7afbd;
+  --st-briefed: #1f2b42;   --st-briefed-fg: #a9c1ee;
+  --st-running: #173544;   --st-running-fg: #9fd6ec;
+  --st-verifying: #3a2f17; --st-verifying-fg: #f0cf85;
+  --st-review: #2c2440;    --st-review-fg: #c9b6f2;
+  --st-fixing: #3d2419;    --st-fixing-fg: #f4b597;
+  --st-ready: #173323;     --st-ready-fg: #9bdcae;
+  --st-merged: #3f9a5b;    --st-merged-fg: #0e1a12;
+  --st-blocked: #3d1d1f;   --st-blocked-fg: #f3a5a8;
+  --v-go: #9bdcae; --v-nogo: #f3a5a8; --v-mid: #f0cf85;
+  --edge: #465062; --scrim: rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 24px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+a { color: var(--accent); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Masthead */
+.mast { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+.brand { display: grid; gap: 2px; min-width: 0; }
+.brand .eyebrow { font-size: .74rem; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.brand h1 { font-weight: 600; font-size: 1.45rem; line-height: 1.2; }
+.brand .sub { font-size: .88rem; color: var(--muted); }
+.now { display: grid; gap: 4px; font-size: .92rem; min-width: 0; max-width: 560px; }
+.now b { font-weight: 600; }
+.source { justify-self: start; font-size: .72rem; font-family: var(--font-mono); padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.source.demo { border-color: var(--added); color: var(--added); }
+
+/* Milestone strip */
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.ms { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 12px 10px; display: grid; gap: 6px; text-align: left; cursor: pointer; min-width: 0; }
+.ms:hover { border-color: var(--accent); }
+.ms .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ms .id { font-family: var(--font-mono); font-weight: 500; color: var(--accent); }
+.ms .t { font-weight: 600; font-size: .92rem; line-height: 1.3; }
+.ms.is-added { border-style: dashed; border-color: var(--added); }
+.bar { height: 6px; border-radius: 3px; background: var(--st-planned); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--st-merged); }
+.count { font-size: .78rem; color: var(--muted); }
+
+/* Chips */
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .8; }
+.s-planned { background: var(--st-planned); color: var(--st-planned-fg); }
+.s-briefed { background: var(--st-briefed); color: var(--st-briefed-fg); }
+.s-running { background: var(--st-running); color: var(--st-running-fg); }
+.s-verifying { background: var(--st-verifying); color: var(--st-verifying-fg); }
+.s-review { background: var(--st-review); color: var(--st-review-fg); }
+.s-fixing { background: var(--st-fixing); color: var(--st-fixing-fg); }
+.s-ready { background: var(--st-ready); color: var(--st-ready-fg); }
+.s-merged { background: var(--st-merged); color: var(--st-merged-fg); }
+.s-blocked { background: var(--st-blocked); color: var(--st-blocked-fg); }
+.s-running::before { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .s-running::before { animation: none; } }
+.tag-added { display: inline-block; font-size: .68rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 0 6px; border-radius: 4px; color: var(--added); background: var(--added-soft); border: 1px dashed var(--added); line-height: 1.5; }
+.kind { font-family: var(--font-mono); font-size: .72rem; padding: 0 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.verdict { font-family: var(--font-mono); font-size: .74rem; font-weight: 500; }
+.v-go { color: var(--v-go); } .v-nogo { color: var(--v-nogo); } .v-mid { color: var(--v-mid); }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
+.panel h2 { font-size: 1.05rem; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.legend .note { font-size: .78rem; color: var(--muted); }
+.graph-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.graph-scroll svg { display: block; }
+.graph-scroll text { font-family: var(--font-body); }
+.gnode { cursor: pointer; }
+.gnode:focus-visible rect { stroke: var(--accent); stroke-width: 2.5; }
+.gnode:focus { outline: none; }
+
+/* Milestone sections */
+.msec { display: grid; gap: 8px; scroll-margin-top: 12px; }
+.msec-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.msec-head:hover h3 { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.msec-head h3 { font-size: 1.1rem; font-weight: 600; }
+.msec-head .id { font-family: var(--font-mono); color: var(--accent); font-weight: 500; }
+.tryit { font-size: .92rem; max-width: 75ch; }
+.tryit b { font-weight: 600; }
+.stages { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.srow { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; width: 100%; padding: 10px 12px; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; }
+.stages > .srow:first-child, .stages > .slot:first-child + .srow { border-top: 0; }
+.srow:hover { background: var(--accent-soft); }
+.srow.is-added { background: var(--added-soft); box-shadow: inset 3px 0 0 var(--added); }
+.srow .sid { font-family: var(--font-mono); color: var(--accent); font-size: .88rem; padding-top: 1px; }
+.srow .what { display: grid; gap: 2px; min-width: 0; }
+.srow .what .t { font-weight: 500; }
+.srow .meta { font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.srow .note { font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+.srow .right { display: grid; gap: 4px; justify-items: end; }
+@media (max-width: 560px) {
+  .srow { grid-template-columns: 1fr auto; }
+  .srow .sid { grid-column: 1; }
+  .srow .right { grid-column: 2; grid-row: 1; }
+  .srow .what { grid-column: 1 / -1; }
+}
+.slot { display: flex; justify-content: center; height: 0; position: relative; z-index: 1; }
+.slot button, .addms { font-size: .76rem; color: var(--muted); background: var(--surface); border: 1px dashed var(--line); border-radius: 999px; padding: 1px 10px; cursor: pointer; }
+.slot button { transform: translateY(-50%); opacity: .0; transition: opacity .15s; }
+.stages:hover .slot button, .slot button:focus-visible { opacity: 1; }
+@media (hover: none) { .slot button { opacity: .85; } }
+.slot button:hover, .addms:hover { color: var(--added); border-color: var(--added); }
+.slot.end { height: auto; padding: 6px; border-top: 1px solid var(--line); }
+.slot.end button { transform: none; opacity: 1; }
+.addms-row { display: flex; justify-content: center; }
+.writeoff .slot, .writeoff .addms-row, .writeoff .add-note { display: none; }
+
+/* Log */
+.log { display: grid; }
+.log .e { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: .88rem; }
+.log .e:last-child { border-bottom: 0; }
+.log time { font-family: var(--font-mono); color: var(--muted); font-size: .8rem; }
+.log .body { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; min-width: 0; }
+.log .body > span.txt { overflow-wrap: anywhere; min-width: 0; }
+.refbtn { font-family: var(--font-mono); font-size: .74rem; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 4px; padding: 0 6px; cursor: pointer; }
+@media (max-width: 520px) { .log .e { grid-template-columns: 1fr; gap: 2px; } }
+
+.state { padding: 28px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; display: grid; gap: 12px; justify-items: center; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 500; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.btn.added { border-color: var(--added); color: var(--added); }
+footer { font-size: .8rem; color: var(--muted); }
+
+/* Detail sheet and forms (native <dialog>) */
+dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--surface); color: var(--ink); width: min(640px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); }
+dialog::backdrop { background: var(--scrim); }
+.sheet { display: grid; gap: 16px; padding: 18px; }
+.sheet-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.sheet-head .ttl { display: grid; gap: 4px; min-width: 0; }
+.sheet-head h2 { font-size: 1.15rem; font-weight: 600; overflow-wrap: anywhere; }
+.sheet-head .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.close { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; width: 32px; height: 32px; cursor: pointer; flex: none; font-size: 1.1rem; line-height: 1; }
+.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: .88rem; margin: 0; }
+.fields dt { color: var(--muted); }
+.fields dd { margin: 0; overflow-wrap: anywhere; }
+.sheet h3 { font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.sec { display: grid; gap: 8px; }
+.iters { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.iters li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: .88rem; }
+.iters li:first-child { border-top: 0; }
+.iters .rnd { font-family: var(--font-mono); color: var(--muted); font-size: .8rem; padding-top: 2px; }
+.iters .top { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.iters .by { font-size: .78rem; color: var(--muted); }
+.iters .txt { overflow-wrap: anywhere; }
+.substages { display: grid; gap: 4px; }
+.substages button { display: flex; justify-content: space-between; gap: 8px; align-items: center; text-align: left; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.substages button:hover { border-color: var(--accent); }
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 4px; font-size: .86rem; font-weight: 500; }
+.form .hint { font-weight: 400; color: var(--muted); font-size: .78rem; }
+.form input, .form textarea, .form select { font: inherit; font-size: .92rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+.form textarea { min-height: 70px; resize: vertical; }
+.form .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.form .where { font-size: .86rem; background: var(--added-soft); border: 1px dashed var(--added); border-radius: 6px; padding: 8px 10px; }
+.form .err { color: var(--v-nogo); font-size: .86rem; }
+.review { display: grid; gap: 8px; font-size: .9rem; }
+</style>
+
+<div class="wrap" id="app">
+  <header class="mast">
+    <div class="brand">
+      <span class="eyebrow">Build tracker</span>
+      <h1 id="project">Build tracker</h1>
+      <span class="sub" id="subtitle" hidden></span>
+    </div>
+    <div class="now">
+      <div><b>Now:</b> <span id="focus">Loading the build state…</span></div>
+      <div><b>Waiting on:</b> <span id="waiting">—</span></div>
+      <div class="muted" id="updated"></div>
+      <span class="source" id="source" hidden></span>
+    </div>
+  </header>
+
+  <nav class="strip" id="strip" aria-label="Milestones"></nav>
+
+  <section class="panel" aria-labelledby="g-title">
+    <div class="panel-head">
+      <h2 id="g-title">What depends on what</h2>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="graph-scroll" id="graph"><div class="state">The stage graph appears once the build state loads.</div></div>
+  </section>
+
+  <div id="sections" style="display:grid;gap:28px"></div>
+
+  <section class="panel" aria-labelledby="l-title">
+    <div class="panel-head"><h2 id="l-title">Recent activity</h2><span class="muted" style="font-size:.8rem">Click an id to open that stage or milestone.</span></div>
+    <div class="log" id="log"><div class="muted">No activity recorded yet.</div></div>
+  </section>
+
+  <footer>Updated by the foreman at every stage transition and every build, review and fix round. Nothing here merges code; merges happen only on the owner's word.</footer>
+</div>
+
+<dialog id="sheet" aria-labelledby="sheet-title"><div class="sheet" id="sheet-body"></div></dialog>
+
+<!-- Sample plan for ?demo / #demo / "Show sample data". Same content as dashboard/seed-example.json (ArtifactData batch format). -->
+<script type="application/json" id="demo-data">
+{"writes":[
+{"op":"set","collection":"meta","doc_id":"state","data":{"project":"Invoice export","subtitle":"Sample plan: shows every feature of the tracker","focus":"Stage 2.1 export screen is being built; the contract and API are merged.","waitingOn":"Owner: merge decision on PR #14 (stage 1.2).","updated":"2026-09-30T09:40:00Z"}},
+{"op":"set","collection":"milestones","doc_id":"M1","data":{"order":1,"title":"Export contract and API","tryIt":"call GET /invoices/export?month=2026-09 and get a CSV with one row per invoice.","origin":"planned"}},
+{"op":"set","collection":"milestones","doc_id":"M2","data":{"order":2,"title":"Export screen","tryIt":"pick a month on the Invoices page, press Export, open the downloaded CSV.","origin":"planned"}},
+{"op":"set","collection":"stages","doc_id":"1.1","data":{"sid":"1.1","milestone":"M1","order":1,"status":"merged","title":"Export contract","worker":"sonnet-5.5","depends":[],"note":"CSV columns, encoding and the month filter fixed in docs/contracts/EXPORT.md","pr":"https://github.com/example/invoices/pull/12","origin":"planned"}},
+{"op":"set","collection":"stages","doc_id":"1.2","data":{"sid":"1.2","milestone":"M1","order":2,"status":"ready","title":"Export endpoint","worker":"deepseek-v4.1-flash","depends":["1.1"],"pr":"https://github.com/example/invoices/pull/14","origin":"planned"}},
+{"op":"set","collection":"stages","doc_id":"1.2a","data":{"sid":"1.2a","milestone":"M1","order":2.5,"status":"merged","title":"Stream large exports","worker":"sonnet-5.5","depends":["1.2"],"note":"A 40k-invoice month ran out of memory in the gate; rows now stream.","origin":"added","addedAt":"2026-09-29T16:10:00Z","addedReason":"Found in the 1.2 gate: memory blow-up on large months."}},
+{"op":"set","collection":"stages","doc_id":"2.1","data":{"sid":"2.1","milestone":"M2","order":1,"status":"running","title":"Export screen","worker":"gemini-flash","depends":["1.2"],"origin":"planned"}},
+{"op":"set","collection":"stages","doc_id":"2.2","data":{"sid":"2.2","milestone":"M2","order":2,"status":"planned","title":"End-to-end test and test plan","worker":"foreman","depends":["2.1"],"origin":"planned"}},
+{"op":"set","collection":"log","doc_id":"e001","data":{"at":"2026-09-28T09:00:00Z","text":"Run sheet approved: milestones + stages, reviewer routing in the run sheet."}},
+{"op":"set","collection":"log","doc_id":"e002","data":{"at":"2026-09-28T10:05:00Z","text":"Contract draft committed.","ref":"1.1","kind":"build","round":1,"actor":"sonnet-5.5"}},
+{"op":"set","collection":"log","doc_id":"e003","data":{"at":"2026-09-28T12:30:00Z","text":"9 findings: month boundaries in UTC vs local time undefined; no column order.","ref":"1.1","kind":"review","round":1,"verdict":"NO-GO","actor":"deep reviewer","link":"https://github.com/example/invoices/pull/12#issuecomment-1"}},
+{"op":"set","collection":"log","doc_id":"e004","data":{"at":"2026-09-28T12:50:00Z","text":"Fix brief with rulings: months are UTC; fixed column order; rejected the proposed export queue (not needed).","ref":"1.1","kind":"decision","actor":"foreman"}},
+{"op":"set","collection":"log","doc_id":"e005","data":{"at":"2026-09-28T14:10:00Z","text":"All 9 findings answered in the contract.","ref":"1.1","kind":"fix","round":2,"actor":"sonnet-5.5"}},
+{"op":"set","collection":"log","doc_id":"e006","data":{"at":"2026-09-28T15:00:00Z","text":"9 of 9 closed.","ref":"1.1","kind":"review","round":2,"verdict":"GO","actor":"deep reviewer"}},
+{"op":"set","collection":"log","doc_id":"e007","data":{"at":"2026-09-29T11:00:00Z","text":"Endpoint built; 42 tests pass.","ref":"1.2","kind":"build","round":1,"actor":"deepseek-v4.1-flash"}},
+{"op":"set","collection":"log","doc_id":"e008","data":{"at":"2026-09-29T15:40:00Z","text":"Foreman gate: 40k-row month used 3 GB. Added stage 1.2a.","ref":"1.2","kind":"review","round":1,"verdict":"GO WITH CHANGES","actor":"foreman"}},
+{"op":"set","collection":"log","doc_id":"e009","data":{"at":"2026-09-29T19:20:00Z","text":"Streaming writer; peak memory 60 MB on the same month.","ref":"1.2a","kind":"build","round":1,"actor":"sonnet-5.5"}},
+{"op":"set","collection":"log","doc_id":"e010","data":{"at":"2026-09-30T08:30:00Z","text":"M1 test plan written; owner can try the API.","ref":"M1","kind":"note","actor":"foreman"}},
+{"op":"set","collection":"log","doc_id":"e011","data":{"at":"2026-09-30T09:40:00Z","text":"Export screen brief dispatched.","ref":"2.1","kind":"build","round":1,"actor":"gemini-flash"}}
+]}
+</script>
+
+<script>
+(function () {
+  "use strict";
+  const STATUS = {
+    planned: "Planned", briefed: "Brief ready", running: "Running", verifying: "Verifying",
+    review: "In review", fixing: "Fixing", ready: "Ready to merge", merged: "Merged", blocked: "Blocked"
+  };
+  const ITER_KINDS = new Set(["build", "review", "fix"]);
+  const DONE = new Set(["merged"]);
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const chip = (s) => `<span class="chip s-${esc(STATUS[s] ? s : "planned")}">${esc(STATUS[s] || s || "Planned")}</span>`;
+  const isAdded = (x) => x && x.origin === "added";
+  const addedTag = (x) => isAdded(x) ? ' <span class="tag-added" title="Added after planning">added</span>' : "";
+  const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+  const entryTime = (e) => e.at || e.ts || "";
+
+  // ---- state ---------------------------------------------------------------
+  let mode = "loading";            // live | demo | fixture | none
+  let db = null, user = null, myId = null, canWrite = false;
+  let milestones = [], stages = [], meta = null, log = [];
+  const names = {};                 // authorId -> display name (resolved at render, never stored)
+
+  $("legend").innerHTML = Object.keys(STATUS).map(chip).join("") +
+    ' <span class="tag-added">added</span><span class="note">= created after planning</span>';
+
+  function fmtTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return esc(iso);
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  function verdictCls(v) {
+    const s = String(v || "").toUpperCase().replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    if (/^(NO-GO|NO GO|FAIL|REJECT)/.test(s)) return "v-nogo";
+    if (/^(GO WITH|PARTIAL|CHANGES)/.test(s)) return "v-mid";
+    if (/^(GO|PASS|APPROVED?)/.test(s)) return "v-go";
+    return "";
+  }
+  function byMilestone() {
+    const m = {};
+    stages.forEach(s => { (m[s.milestone] ||= []).push(s); });
+    Object.values(m).forEach(l => l.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+    return m;
+  }
+  function msStatus(ms, list) {
+    if (!list.length) return ms.status || "planned";
+    if (list.every(s => DONE.has(s.status))) return "merged";
+    if (list.some(s => s.status === "blocked")) return "blocked";
+    if (list.every(s => s.status === "ready" || DONE.has(s.status))) return "ready";
+    if (list.some(s => s.status && s.status !== "planned")) return "running";
+    return ms.status || "planned";
+  }
+  const entriesFor = (ref) => log.filter(e => e.ref === ref).sort((a, b) => String(entryTime(a)).localeCompare(String(entryTime(b))));
+  const findStage = (sid) => stages.find(s => s.sid === sid);
+  const findMs = (id) => milestones.find(m => m.id === id);
+  const authorName = (e) => e.actor || (e.authorId ? (names[e.authorId] || "a viewer") : "");
+
+  // ---- render --------------------------------------------------------------
+  function render() {
+    document.getElementById("app").classList.toggle("writeoff", !canWrite);
+    $("project").textContent = (meta && meta.project) || "Build tracker";
+    const sub = meta && meta.subtitle;
+    $("subtitle").hidden = !sub; $("subtitle").textContent = sub || "";
+    if (meta) {
+      $("focus").textContent = meta.focus || "—";
+      $("waiting").textContent = meta.waitingOn || "nothing";
+      $("updated").textContent = meta.updated ? "Last update " + fmtTime(meta.updated) : "";
+    } else if (mode === "live") {
+      $("focus").textContent = "—"; $("waiting").textContent = "nothing";
+    }
+    const src = $("source");
+    src.hidden = mode === "loading";
+    src.className = "source" + (mode === "demo" || mode === "fixture" ? " demo" : "");
+    src.textContent = mode === "live" ? "live" : mode === "demo" ? "sample data, changes are not saved" : mode === "fixture" ? "fixture" : "no database";
+
+    if (mode === "none") return renderNoDb();
+    const byMs = byMilestone();
+
+    if (!milestones.length) {
+      $("strip").innerHTML = "";
+      $("graph").innerHTML = '<div class="state">No plan yet. The foreman seeds milestones and stages from the run sheet.</div>';
+      $("sections").innerHTML = `<div class="state"><span>No milestones yet.</span>${canWrite ? '<button class="btn added" data-act="add-ms" data-after="">Add the first milestone</button>' : ""}</div>`;
+      renderLog();
+      return;
+    }
+
+    $("strip").innerHTML = milestones.map(m => {
+      const l = byMs[m.id] || [];
+      const done = l.filter(s => DONE.has(s.status)).length;
+      const pct = l.length ? Math.round(done / l.length * 100) : 0;
+      return `<button class="ms${isAdded(m) ? " is-added" : ""}" data-open-ms="${esc(m.id)}" aria-label="Open milestone ${esc(m.id)}">
+        <div class="top"><span class="id">${esc(m.id)}${addedTag(m)}</span>${chip(msStatus(m, l))}</div>
+        <div class="t">${esc(m.title)}</div>
+        <div class="bar" role="img" aria-label="${done} of ${l.length} stages merged"><i style="width:${pct}%"></i></div>
+        <div class="count">${done} / ${l.length} stages merged</div>
+      </button>`;
+    }).join("");
+
+    renderGraph(byMs);
+
+    const parts = [];
+    milestones.forEach((m, mi) => {
+      const l = byMs[m.id] || [];
+      const rows = [];
+      l.forEach((s, i) => {
+        if (i > 0) rows.push(`<div class="slot"><button data-act="add-stage" data-ms="${esc(m.id)}" data-after="${esc(l[i - 1].sid)}" aria-label="Add a stage between ${esc(l[i - 1].sid)} and ${esc(s.sid)}">+ add stage here</button></div>`);
+        const iters = entriesFor(s.sid).filter(e => ITER_KINDS.has(e.kind));
+        const last = iters[iters.length - 1];
+        rows.push(`<button class="srow${isAdded(s) ? " is-added" : ""}" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}: ${esc(s.title)}">
+          <span class="sid">${esc(s.sid)}</span>
+          <span class="what"><span class="t">${esc(s.title)}${addedTag(s)}</span>
+            <span class="meta"><span>${esc(s.worker || "unassigned")}</span><span class="mono">needs ${esc((s.depends || []).join(", ") || "—")}</span>${iters.length ? `<span>${iters.length} iteration${iters.length > 1 ? "s" : ""}${last && last.verdict ? ` · last <span class="verdict ${verdictCls(last.verdict)}">${esc(last.verdict)}</span>` : ""}</span>` : ""}</span>
+            ${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}</span>
+          <span class="right">${chip(s.status)}${safeUrl(s.pr) ? '<span class="count">PR</span>' : ""}</span>
+        </button>`);
+      });
+      const lastSid = l.length ? l[l.length - 1].sid : "";
+      rows.push(`<div class="slot end"><button data-act="add-stage" data-ms="${esc(m.id)}" data-after="${esc(lastSid)}" data-end="1">+ add stage at the end of ${esc(m.id)}</button></div>`);
+      if (!l.length) rows.unshift('<div class="srow" style="cursor:default" aria-hidden="true"><span></span><span class="muted">No stages yet.</span><span></span></div>');
+      parts.push(`<section class="msec" id="${esc(m.id)}">
+        <button class="msec-head" data-open-ms="${esc(m.id)}" aria-label="Open milestone ${esc(m.id)}"><span class="id">${esc(m.id)}</span><h3>${esc(m.title)}</h3>${chip(msStatus(m, l))}${addedTag(m)}</button>
+        ${m.tryIt ? `<p class="tryit"><b>You can try:</b> ${esc(m.tryIt)}</p>` : ""}
+        <div class="stages">${rows.join("")}</div>
+      </section>`);
+      const next = milestones[mi + 1];
+      parts.push(`<div class="addms-row"><button class="addms" data-act="add-ms" data-after="${esc(m.id)}">+ add milestone ${next ? `between ${esc(m.id)} and ${esc(next.id)}` : "after " + esc(m.id)}</button></div>`);
+    });
+    $("sections").innerHTML = parts.join("");
+    renderLog();
+  }
+
+  function renderNoDb() {
+    $("focus").textContent = "The live build state isn't available in this view.";
+    $("waiting").textContent = "—";
+    $("strip").innerHTML = "";
+    $("graph").innerHTML = '<div class="state"><span>Open this page in claude.ai while signed in to see the live build state.</span><button class="btn" data-act="demo">Show sample data</button></div>';
+    $("sections").innerHTML = "";
+    $("log").innerHTML = '<div class="muted">No database in this view.</div>';
+  }
+
+  function logLine(e) {
+    const ref = e.ref && (findStage(e.ref) || findMs(e.ref)) ? `<button class="refbtn" data-open-ref="${esc(e.ref)}">${esc(e.ref)}</button>` : (e.ref ? `<span class="kind">${esc(e.ref)}</span>` : "");
+    const kind = e.kind ? `<span class="kind">${esc(e.kind)}${e.round ? " r" + esc(e.round) : ""}</span>` : "";
+    const v = e.verdict ? `<span class="verdict ${verdictCls(e.verdict)}">${esc(e.verdict)}</span>` : "";
+    return `<div class="e"><time>${esc(fmtTime(entryTime(e)))}</time><span class="body">${ref}${kind}${v}<span class="txt">${esc(e.text)}</span>${isAdded(e) ? '<span class="tag-added">added</span>' : ""}</span></div>`;
+  }
+  function renderLog() {
+    const sorted = [...log].sort((a, b) => String(entryTime(b)).localeCompare(String(entryTime(a)))).slice(0, 30);
+    $("log").innerHTML = sorted.length ? sorted.map(logLine).join("") : '<div class="muted">No activity recorded yet.</div>';
+  }
+
+  function renderGraph(byMs) {
+    const NW = 150, NH = 46, CG = 34, RG = 12, LANE_PAD = 18, LABEL_W = 56;
+    const pos = {};
+    let y = 8, maxX = LABEL_W + NW;
+    const lanes = [];
+    milestones.forEach(m => {
+      const l = byMs[m.id] || [];
+      const ids = new Set(l.map(s => s.sid));
+      const depth = {};
+      const d = (s, seen = new Set()) => {
+        if (depth[s.sid] != null) return depth[s.sid];
+        if (seen.has(s.sid)) return 0;
+        seen.add(s.sid);
+        const parents = (s.depends || []).filter(p => ids.has(p)).map(p => l.find(x => x.sid === p));
+        const v = parents.length ? 1 + Math.max(...parents.map(p => d(p, seen))) : 0;
+        return (depth[s.sid] = v);
+      };
+      l.forEach(s => d(s));
+      const cols = {};
+      l.forEach(s => { (cols[depth[s.sid]] ||= []).push(s); });
+      const rows = Math.max(1, ...Object.values(cols).map(c => c.length));
+      const laneH = rows * NH + (rows - 1) * RG + LANE_PAD * 2;
+      Object.entries(cols).forEach(([c, list]) => {
+        const colH = list.length * NH + (list.length - 1) * RG;
+        const top = y + (laneH - colH) / 2;
+        list.forEach((s, i) => {
+          const x = LABEL_W + Number(c) * (NW + CG);
+          pos[s.sid] = { x, y: top + i * (NH + RG), s };
+          maxX = Math.max(maxX, x + NW);
+        });
+      });
+      lanes.push({ m, y, h: laneH });
+      y += laneH + 10;
+    });
+    const W = maxX + 12, H = y;
+    let edges = "", nodes = "", bands = "";
+    lanes.forEach((ln, i) => {
+      bands += `<rect x="0" y="${ln.y}" width="${W}" height="${ln.h}" rx="8" style="fill:${i % 2 ? "var(--bg)" : "var(--surface)"};stroke:var(--line)"/>`;
+      bands += `<text x="12" y="${ln.y + ln.h / 2 + 5}" style="fill:${isAdded(ln.m) ? "var(--added)" : "var(--accent)"};font-family:var(--font-mono);font-size:13px;font-weight:500">${esc(ln.m.id)}</text>`;
+    });
+    Object.values(pos).forEach(({ x, y, s }) => {
+      (s.depends || []).forEach(p => {
+        const a = pos[p];
+        if (!a || a.s.milestone !== s.milestone) return;
+        const x1 = a.x + NW, y1 = a.y + NH / 2, x2 = x, y2 = y + NH / 2, mx = (x1 + x2) / 2;
+        edges += `<path d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2 - 4},${y2}" style="fill:none;stroke:var(--edge);stroke-width:1.5"/>`;
+        edges += `<path d="M${x2 - 8},${y2 - 4} L${x2},${y2} L${x2 - 8},${y2 + 4}" style="fill:none;stroke:var(--edge);stroke-width:1.5"/>`;
+      });
+      const st = STATUS[s.status] ? s.status : "planned";
+      const t = String(s.title || "");
+      const title = t.length > 20 ? t.slice(0, 19) + "…" : t;
+      const added = isAdded(s);
+      nodes += `<g class="gnode" tabindex="0" role="button" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}"><title>${esc(s.sid + " " + t + " — " + STATUS[st] + (added ? " (added after planning)" : ""))}</title>
+        <rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="7" style="fill:var(--st-${st});stroke:${added ? "var(--added)" : "var(--line)"};stroke-width:${added ? 2 : 1}${added ? ";stroke-dasharray:5 3" : ""}"/>
+        <text x="${x + 10}" y="${y + 18}" style="fill:var(--st-${st}-fg);font-family:var(--font-mono);font-size:11.5px;font-weight:500">${esc(s.sid)}${added ? " +" : ""}</text>
+        <text x="${x + 10}" y="${y + 35}" style="fill:var(--st-${st}-fg);font-size:12.5px">${esc(title)}</text></g>`;
+    });
+    $("graph").innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Stage dependency graph, one lane per milestone">${bands}${edges}${nodes}</svg>`;
+  }
+
+  // ---- detail sheet ----------------------------------------------------------
+  const sheet = $("sheet");
+  let sheetRef = null;               // what the sheet shows, for live refresh: {type, id} or {form}
+  function openSheet(html, ref) {
+    $("sheet-body").innerHTML = html;
+    sheetRef = ref;
+    if (!sheet.open) sheet.showModal();
+    const f = $("sheet-body").querySelector("[autofocus]");
+    if (f) f.focus();
+  }
+  sheet.addEventListener("close", () => { sheetRef = null; });
+  sheet.addEventListener("click", (ev) => { if (ev.target === sheet) sheet.close(); });
+
+  function iterList(entries) {
+    if (!entries.length) return '<p class="muted" style="font-size:.88rem">No entries yet.</p>';
+    return `<ol class="iters">${entries.map(e => {
+      const who = authorName(e);
+      const link = safeUrl(e.link);
+      return `<li><span class="rnd">${e.round ? "r" + esc(e.round) : ""}</span><div>
+        <div class="top">${e.kind ? `<span class="kind">${esc(e.kind)}</span>` : ""}${e.verdict ? `<span class="verdict ${verdictCls(e.verdict)}">${esc(e.verdict)}</span>` : ""}<span class="by">${esc(fmtTime(entryTime(e)))}${who ? " · " + esc(who) : ""}</span>${isAdded(e) ? '<span class="tag-added">added</span>' : ""}</div>
+        <div class="txt">${esc(e.text)}${link ? ` <a href="${esc(link)}" target="_blank" rel="noopener">link</a>` : ""}</div></div></li>`;
+    }).join("")}</ol>`;
+  }
+  function originRows(x) {
+    if (!isAdded(x)) return "<dt>Origin</dt><dd>Planned</dd>";
+    return `<dt>Origin</dt><dd><span class="tag-added">added</span> after planning${x.addedAt ? " · " + esc(fmtTime(x.addedAt)) : ""}</dd>` +
+      (x.addedReason ? `<dt>Why</dt><dd>${esc(x.addedReason)}</dd>` : "") +
+      (x.addedBy ? `<dt>Added by</dt><dd>${esc(names[x.addedBy] || x.addedByName || "a viewer")}</dd>` : "");
+  }
+  const noteButton = (ref) => canWrite ? `<button class="btn added add-note" data-act="add-note" data-ref="${esc(ref)}">Add note</button>` : "";
+
+  function stageSheet(sid) {
+    const s = findStage(sid);
+    if (!s) return waitSheet({ type: "stage", id: sid });
+    const all = entriesFor(sid);
+    const iters = all.filter(e => ITER_KINDS.has(e.kind));
+    const others = all.filter(e => !ITER_KINDS.has(e.kind));
+    const pr = safeUrl(s.pr);
+    const ms = findMs(s.milestone);
+    openSheet(`
+      <div class="sheet-head"><div class="ttl"><span class="mono muted">stage ${esc(s.sid)} · ${esc(s.milestone)}${ms ? " " + esc(ms.title) : ""}</span>
+        <h2 id="sheet-title">${esc(s.title)}</h2><div class="row">${chip(s.status)}${addedTag(s)}</div></div>
+        <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
+      <dl class="fields">
+        <dt>Worker</dt><dd>${esc(s.worker || "unassigned")}</dd>
+        <dt>Needs</dt><dd class="mono">${(s.depends || []).length ? s.depends.map(d => findStage(d) ? `<button class="refbtn" data-open-ref="${esc(d)}">${esc(d)}</button>` : esc(d)).join(" ") : "—"}</dd>
+        ${pr ? `<dt>PR</dt><dd><a href="${esc(pr)}" target="_blank" rel="noopener">${esc(pr.replace(/^https?:\/\//, ""))}</a></dd>` : ""}
+        ${s.note ? `<dt>Note</dt><dd>${esc(s.note)}</dd>` : ""}
+        ${originRows(s)}
+      </dl>
+      <div class="sec"><h3>Iterations</h3>${iterList(iters)}</div>
+      <div class="sec"><h3>Log</h3>${iterList(others)}<div>${noteButton(sid)}</div></div>`, { type: "stage", id: sid });
+  }
+  function msSheet(id) {
+    const m = findMs(id);
+    if (!m) return waitSheet({ type: "ms", id });
+    const l = byMilestone()[id] || [];
+    const own = entriesFor(id);
+    const subs = l.map(s => {
+      const n = entriesFor(s.sid).filter(e => ITER_KINDS.has(e.kind)).length;
+      return `<button data-open-ref="${esc(s.sid)}"><span><span class="mono" style="color:var(--accent)">${esc(s.sid)}</span> ${esc(s.title)}${addedTag(s)}</span><span class="row" style="display:flex;gap:6px;align-items:center">${n ? `<span class="count">${n} iteration${n > 1 ? "s" : ""}</span>` : ""}${chip(s.status)}</span></button>`;
+    }).join("");
+    const stageIters = l.flatMap(s => entriesFor(s.sid).filter(e => ITER_KINDS.has(e.kind)).map(e => ({ ...e, text: s.sid + ": " + (e.text || "") })))
+      .sort((a, b) => String(entryTime(a)).localeCompare(String(entryTime(b))));
+    openSheet(`
+      <div class="sheet-head"><div class="ttl"><span class="mono muted">milestone ${esc(m.id)}</span>
+        <h2 id="sheet-title">${esc(m.title)}</h2><div class="row">${chip(msStatus(m, l))}${addedTag(m)}</div></div>
+        <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
+      <dl class="fields">
+        ${m.tryIt ? `<dt>You can try</dt><dd>${esc(m.tryIt)}</dd>` : ""}
+        <dt>Stages</dt><dd>${l.filter(s => DONE.has(s.status)).length} of ${l.length} merged</dd>
+        ${originRows(m)}
+      </dl>
+      <div class="sec"><h3>Stages</h3><div class="substages">${subs || '<p class="muted">No stages yet.</p>'}</div></div>
+      <div class="sec"><h3>Milestone log</h3>${iterList(own)}<div>${noteButton(id)}</div></div>
+      <div class="sec"><h3>All iterations in this milestone</h3>${iterList(stageIters)}</div>`, { type: "ms", id });
+  }
+  function waitSheet(ref) {
+    // Right after a live save the snapshot may not have delivered the new doc yet; refreshSheet() fills this in.
+    if (!sheet.open) return;
+    openSheet(`<div class="sheet-head"><div class="ttl"><h2 id="sheet-title">Saved</h2></div><button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
+      <p class="muted">Waiting for the tracker to show ${esc(ref.id)}…</p>`, ref);
+  }
+  function refreshSheet() {
+    if (!sheet.open || !sheetRef) return;
+    if (sheetRef.type === "stage") stageSheet(sheetRef.id);
+    else if (sheetRef.type === "ms") msSheet(sheetRef.id);
+  }
+
+  // ---- add forms (two steps: fill, then review and save; the viewer never shows confirm()) ----------------
+  function orderBetween(a, b) {
+    if (a == null && b == null) return 1;
+    if (a == null) return b - 1;
+    if (b == null) return a + 1;
+    return (a + b) / 2;
+  }
+  function suggestSid(msId, after, list) {
+    const base = after || (msId.replace(/^M/i, "") + ".0");
+    for (const suf of "abcdefghijklmnopqrstuvwxyz") { const c = base + suf; if (!findStage(c)) return c; }
+    return base + "-" + Date.now().toString(36);
+  }
+  function stageForm(msId, afterSid, atEnd) {
+    const l = byMilestone()[msId] || [];
+    const i = afterSid ? l.findIndex(s => s.sid === afterSid) : -1;
+    const prev = i >= 0 ? l[i] : null, next = atEnd ? null : l[i + 1] || null;
+    const where = prev && next ? `between <b>${esc(prev.sid)}</b> and <b>${esc(next.sid)}</b>` : prev ? `after <b>${esc(prev.sid)}</b>, at the end of ${esc(msId)}` : next ? `before <b>${esc(next.sid)}</b>` : `as the first stage of ${esc(msId)}`;
+    const ctx = { type: "stage", msId, prev: prev && prev.sid, next: next && next.sid, order: orderBetween(prev ? prev.order : null, next ? next.order : null) };
+    openSheet(`
+      <div class="sheet-head"><div class="ttl"><span class="mono muted">${esc(msId)}</span><h2 id="sheet-title">Add a stage</h2></div>
+        <button class="close" data-act="close" aria-label="Close">×</button></div>
+      <form class="form" id="addform" novalidate>
+        <div class="where">New stage goes ${where}. It is marked <span class="tag-added">added</span>.</div>
+        <label for="f-sid">Stage id <span class="hint">unique, e.g. ${esc(suggestSid(msId, prev && prev.sid))}</span><input id="f-sid" name="sid" required maxlength="40" value="${esc(suggestSid(msId, prev && prev.sid))}"></label>
+        <label for="f-title">Title<input id="f-title" name="title" required maxlength="120" autofocus></label>
+        <label for="f-worker">Worker <span class="hint">optional</span><input id="f-worker" name="worker" maxlength="60"></label>
+        <label for="f-depends">Needs <span class="hint">stage ids, comma separated</span><input id="f-depends" name="depends" maxlength="200" value="${esc(prev ? prev.sid : "")}"></label>
+        <label for="f-reason">Why it was added<textarea id="f-reason" name="reason" required maxlength="500"></textarea></label>
+        <p class="err" id="f-err" hidden></p>
+        <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Review</button></div>
+      </form>`, { form: ctx });
+  }
+  function msForm(afterId) {
+    const i = afterId ? milestones.findIndex(m => m.id === afterId) : -1;
+    const prev = i >= 0 ? milestones[i] : null, next = milestones[i + 1] || null;
+    const ctx = { type: "ms", prev: prev && prev.id, next: next && next.id, order: orderBetween(prev ? prev.order : null, next ? next.order : null) };
+    let sug = prev ? prev.id + "a" : "M1";
+    for (const suf of "bcdefghij") { if (!findMs(sug)) break; sug = (prev ? prev.id : "M") + suf; }
+    const where = prev && next ? `between <b>${esc(prev.id)}</b> and <b>${esc(next.id)}</b>` : prev ? `after <b>${esc(prev.id)}</b>` : "as the first milestone";
+    openSheet(`
+      <div class="sheet-head"><div class="ttl"><h2 id="sheet-title">Add a milestone</h2></div>
+        <button class="close" data-act="close" aria-label="Close">×</button></div>
+      <form class="form" id="addform" novalidate>
+        <div class="where">New milestone goes ${where}. It is marked <span class="tag-added">added</span>.</div>
+        <label for="f-id">Milestone id<input id="f-id" name="msid" required maxlength="40" value="${esc(sug)}"></label>
+        <label for="f-title">Title<input id="f-title" name="title" required maxlength="120" autofocus></label>
+        <label for="f-try">What the owner can try when it is done <span class="hint">optional</span><input id="f-try" name="tryIt" maxlength="300"></label>
+        <label for="f-reason">Why it was added<textarea id="f-reason" name="reason" required maxlength="500"></textarea></label>
+        <p class="err" id="f-err" hidden></p>
+        <div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Review</button></div>
+      </form>`, { form: ctx });
+  }
+  function noteForm(ref) {
+    openSheet(`
+      <div class="sheet-head"><div class="ttl"><span class="mono muted">${esc(ref)}</span><h2 id="sheet-title">Add a note</h2></div>
+        <button class="close" data-act="close" aria-label="Close">×</button></div>
+      <form class="form" id="addform" novalidate>
+        <label for="f-kind">Kind<select id="f-kind" name="kind"><option value="note">note</option><option value="decision">decision</option></select></label>
+        <label for="f-text">Note<textarea id="f-text" name="text" required maxlength="1000" autofocus></textarea></label>
+        <p class="err" id="f-err" hidden></p>
+        <div class="actions"><button type="button" class="btn" data-open-ref="${esc(ref)}">Back</button><button type="submit" class="btn primary">Review</button></div>
+      </form>`, { form: { type: "note", ref } });
+  }
+
+  let pending = null;                // the writes the review step will save
+  function nowIso() { return new Date().toISOString().replace(/\.\d+Z$/, "Z"); }
+  function logId() { return "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  const idOk = (s) => /^[A-Za-z0-9_\-.~:@+]{1,40}$/.test(s) && s !== "." && s !== "..";
+
+  function onSubmit(form) {
+    const ctx = sheetRef && sheetRef.form;
+    if (!ctx) return;
+    const v = Object.fromEntries(new FormData(form).entries());
+    const err = (msg) => { const e = $("f-err"); e.textContent = msg; e.hidden = false; };
+    const at = nowIso();
+    const stamp = { origin: "added", addedAt: at };
+    if (myId) stamp.addedBy = myId;
+    const author = myId ? { authorId: myId } : {};
+    let summary = "";
+    if (ctx.type === "stage") {
+      const sid = (v.sid || "").trim(), title = (v.title || "").trim(), reason = (v.reason || "").trim();
+      if (!idOk(sid)) return err("Stage id: letters, digits and . _ - only, up to 40 characters.");
+      if (findStage(sid)) return err(`Stage ${sid} already exists. Pick another id.`);
+      if (!title) return err("Give the stage a title.");
+      if (!reason) return err("Say why the stage was added; it is shown in the stage's detail.");
+      const depends = String(v.depends || "").split(",").map(x => x.trim()).filter(Boolean);
+      const doc = { sid, milestone: ctx.msId, order: ctx.order, status: "planned", title, worker: (v.worker || "").trim(), depends, addedReason: reason, ...stamp };
+      pending = [
+        { collection: "stages", id: sid, data: doc },
+        { collection: "log", id: logId(), data: { at, text: `Added stage ${sid}: ${title}. ${reason}`, ref: sid, kind: "note", origin: "added", ...author } }
+      ];
+      pending.after = { type: "stage", id: sid };
+      summary = `Stage <b>${esc(sid)}</b> “${esc(title)}” in ${esc(ctx.msId)}, ${ctx.prev && ctx.next ? `between ${esc(ctx.prev)} and ${esc(ctx.next)}` : ctx.prev ? `after ${esc(ctx.prev)}` : "first"} (order ${esc(ctx.order)}).`;
+    } else if (ctx.type === "ms") {
+      const id = (v.msid || "").trim(), title = (v.title || "").trim(), reason = (v.reason || "").trim();
+      if (!idOk(id)) return err("Milestone id: letters, digits and . _ - only, up to 40 characters.");
+      if (findMs(id)) return err(`Milestone ${id} already exists. Pick another id.`);
+      if (!title) return err("Give the milestone a title.");
+      if (!reason) return err("Say why the milestone was added.");
+      const doc = { order: ctx.order, title, addedReason: reason, ...stamp };
+      if ((v.tryIt || "").trim()) doc.tryIt = v.tryIt.trim();
+      pending = [
+        { collection: "milestones", id, data: doc },
+        { collection: "log", id: logId(), data: { at, text: `Added milestone ${id}: ${title}. ${reason}`, ref: id, kind: "note", origin: "added", ...author } }
+      ];
+      pending.after = { type: "ms", id };
+      summary = `Milestone <b>${esc(id)}</b> “${esc(title)}”, ${ctx.prev && ctx.next ? `between ${esc(ctx.prev)} and ${esc(ctx.next)}` : ctx.prev ? `after ${esc(ctx.prev)}` : "first"} (order ${esc(ctx.order)}).`;
+    } else if (ctx.type === "note") {
+      const text = (v.text || "").trim();
+      if (!text) return err("Write the note first.");
+      pending = [{ collection: "log", id: logId(), data: { at, text, ref: ctx.ref, kind: v.kind === "decision" ? "decision" : "note", origin: "added", ...author } }];
+      pending.after = findStage(ctx.ref) ? { type: "stage", id: ctx.ref } : { type: "ms", id: ctx.ref };
+      summary = `A ${esc(v.kind)} on <b>${esc(ctx.ref)}</b>: “${esc(text)}”`;
+    }
+    const where = mode === "live" ? "the shared tracker. Everyone who opens this page sees it." : "the sample data in this browser tab only. Nothing is saved.";
+    $("sheet-body").innerHTML = `
+      <div class="sheet-head"><div class="ttl"><h2 id="sheet-title">Save this?</h2></div><button class="close" data-act="close" aria-label="Close">×</button></div>
+      <div class="review"><p>${summary}</p><p class="muted">This writes to ${where}</p><p class="err" id="f-err" hidden></p></div>
+      <div class="form"><div class="actions"><button type="button" class="btn" data-act="back">Back</button><button type="button" class="btn primary" data-act="save" id="save-btn">Save</button></div></div>`;
+    sheetRef = { review: ctx };
+    $("save-btn").focus();
+  }
+
+  async function save() {
+    if (!pending) return;
+    const btn = $("save-btn");
+    btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      for (const w of pending) {
+        if (mode === "live") {
+          await db.collection(w.collection).doc(w.id).set(w.data);   // one write per doc, awaited in order
+        } else {
+          applyLocal(w);
+        }
+      }
+      const after = pending.after;
+      pending = null;
+      if (mode !== "live") render();
+      if (after.type === "stage") stageSheet(after.id); else msSheet(after.id);
+    } catch (e) {
+      const code = e && e.code;
+      const msg = code === "invalid_argument" ? "The tracker refused the write. You may only have view access; ask the owner for Contributor access."
+        : code === "quota_exceeded" ? "The tracker's database is full. Ask the foreman to prune old log entries."
+        : "The write did not go through (" + (code || "error") + "). Try again in a moment.";
+      if (code === "invalid_argument") { canWrite = false; render(); }
+      const el = $("f-err"); if (el) { el.textContent = msg; el.hidden = false; }
+      btn.disabled = false; btn.textContent = "Save";
+    }
+  }
+  function applyLocal(w) {
+    if (w.collection === "stages") stages = stages.filter(s => s.sid !== w.id).concat([{ ...w.data }]);
+    else if (w.collection === "milestones") milestones = milestones.filter(m => m.id !== w.id).concat([{ id: w.id, ...w.data }]).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    else if (w.collection === "log") log = log.concat([{ _id: w.id, ...w.data }]);
+    else if (w.collection === "meta" && w.id === "state") meta = { ...w.data };
+  }
+
+  // ---- events -------------------------------------------------------------------
+  document.addEventListener("click", (ev) => {
+    const t = ev.target.closest("[data-open-stage],[data-open-ms],[data-open-ref],[data-act]");
+    if (!t) return;
+    if (t.dataset.openStage) return stageSheet(t.dataset.openStage);
+    if (t.dataset.openMs) return msSheet(t.dataset.openMs);
+    if (t.dataset.openRef) { const r = t.dataset.openRef; return findStage(r) ? stageSheet(r) : msSheet(r); }
+    const act = t.dataset.act;
+    if (act === "close") return sheet.close();
+    if (act === "demo") return loadDemo();
+    if (act === "add-stage") return stageForm(t.dataset.ms, t.dataset.after || null, t.dataset.end === "1");
+    if (act === "add-ms") return msForm(t.dataset.after || null);
+    if (act === "add-note") return noteForm(t.dataset.ref);
+    if (act === "save") return save();
+    if (act === "back") {
+      const c = sheetRef && sheetRef.review;
+      pending = null;
+      if (!c) return;
+      if (c.type === "stage") return stageForm(c.msId, c.prev, !c.next);
+      if (c.type === "ms") return msForm(c.prev);
+      return noteForm(c.ref);
+    }
+  });
+  document.addEventListener("keydown", (ev) => {
+    const g = ev.target.closest && ev.target.closest(".gnode");
+    if (g && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); stageSheet(g.dataset.openStage); }
+  });
+  document.addEventListener("submit", (ev) => {
+    if (ev.target.getAttribute("id") === "addform") { ev.preventDefault(); onSubmit(ev.target); }
+  });
+
+  // ---- data sources ---------------------------------------------------------------
+  function loadWrites(writes) {
+    milestones = []; stages = []; log = []; meta = null;
+    (writes || []).forEach(w => { if (w.op === "set" || !w.op) applyLocal({ collection: w.collection, id: w.doc_id, data: w.data }); });
+  }
+  function loadDemo() {
+    try { loadWrites(JSON.parse($("demo-data").textContent).writes); } catch (e) { console.error("demo data unreadable", e); }
+    mode = "demo"; canWrite = true; myId = null;
+    render();
+  }
+  function loadFixture(fx) {
+    // Test hook: a page script (e.g. Playwright addInitScript) may set window.__TRACKER_FIXTURE__ =
+    // {milestones:[{id,...}], stages:[...], log:[...], meta:{...}} to render a given data shape without the runtime.
+    milestones = (fx.milestones || []).map(m => ({ ...m })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    stages = (fx.stages || []).map(s => ({ ...s }));
+    log = (fx.log || []).map(e => ({ ...e }));
+    meta = fx.meta || null;
+    mode = "fixture"; canWrite = true;
+    render();
+  }
+
+  async function start() {
+    if (window.__TRACKER_FIXTURE__) return loadFixture(window.__TRACKER_FIXTURE__);
+    const wantDemo = /(^|[?&])demo(=|&|$)/.test(location.search.slice(1)) || location.hash === "#demo";
+    if (wantDemo) return loadDemo();
+    let got = null;
+    try { got = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { got = null; }
+    if (!got) { mode = "none"; canWrite = false; return render(); }
+    db = got; mode = "live";
+    try { user = await window.claude.use("user"); } catch (e) { user = null; }
+    try { myId = user ? await user.id() : null; } catch (e) { myId = null; }
+    let can = null;
+    try { can = user ? await user.can("data.write") : null; } catch (e) { can = null; }
+    canWrite = can !== false;       // null = not told: keep the controls; a refused write turns them off
+    render();
+    const onErr = (e) => { $("updated").textContent = "Live updates paused (" + ((e && e.code) || "error") + "). Reload to reconnect."; };
+    const after = () => { render(); refreshSheet(); resolveNames(); };
+    db.collection("milestones").orderBy("order").onSnapshot(q => { milestones = q.docs.map(d => ({ id: d.id, ...d.data() })); after(); }, onErr);
+    db.collection("stages").orderBy("order").onSnapshot(q => { stages = q.docs.map(d => ({ sid: d.id, ...d.data() })); after(); }, onErr);
+    db.doc("meta/state").onSnapshot(d => { meta = d.exists ? d.data() : null; after(); }, onErr);
+    db.collection("log").onSnapshot(q => { log = q.docs.map(d => ({ _id: d.id, ...d.data() })); after(); }, onErr);
+  }
+  let resolving = false;
+  async function resolveNames() {
+    if (!user || resolving) return;
+    const ids = [...new Set([...log.map(e => e.authorId), ...stages.map(s => s.addedBy), ...milestones.map(m => m.addedBy)].filter(Boolean))].filter(id => !(id in names));
+    if (!ids.length) return;
+    resolving = true;
+    try {
+      const ps = await user.profiles(ids.slice(0, 64));
+      ids.forEach(id => { names[id] = (ps && ps[id] && ps[id].name) || "a viewer"; });
+      render(); refreshSheet();
+    } catch (e) { /* names stay "a viewer" */ }
+    resolving = false;
+  }
+  start();
+})();
+</script>

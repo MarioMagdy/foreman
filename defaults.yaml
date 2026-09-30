@@ -1,0 +1,64 @@
+# foreman run sheet — copy, fill in for the job, show the owner, WAIT for a yes.
+# Every value here is a default to be overridden, not a decision already made.
+
+plan: <path to the agreed plan>
+repos: [<repo or worktree pair>]
+
+arrangement: milestones+stages     # milestones | milestones+stages | milestones+stages+steps
+                                   # small job -> milestones only
+                                   # steps only when one stage exceeds a worker's sitting
+
+branching:
+  base: main                       # ask once if the repo has a dev branch, else main
+  milestone_branches: stacked      # each milestone branches off the previous
+  stage_branches: stacked          # each stage branches off the previous, PR into the milestone
+  stage_prs: real                  # real GitHub PRs, so judge findings stay readable after merge
+  merge_policy:
+    stages: owner-explicit-only
+    milestones: owner-explicit-only
+                                   # NOTHING merges on the foreman's judgment. Ready != merged.
+
+gates:                             # who checks a unit before it is called ready
+  trivial: self-review             # foreman reads the diff and runs the tests
+  small:   self-review
+  medium:  self-review + tester    # tester EXECUTES the project's test skill
+  large:   council                 # council-judge, max effort, findings as PR comments first
+  overrides: []                    # e.g. ["council on every stage"] when the owner says so
+
+workers:                           # GENERIC. The owner's own routing is filled in per job, from his
+                                   # words first, then LOCAL.md (if present), then what is installed.
+                                   # Version-suffix every name and CHECK IT LIVE; owner-named workers
+                                   # win verbatim.
+  ui_work:   <model>               # UI / frontend, given a mechanics-level brief
+  spec_work: <model>               # fully specified work, no judgment needed
+  bulk_dumb: <model>               # repetitive, high-volume edits
+  thinking:  <model>               # hard design, contracts, tricky fixes
+  advisor:   <model>               # deepest available thinker; ask BEFORE committing to an approach
+  judging:   <model>               # deep reviewer for gates; council-judge panel for `large`
+  claude_ok: true                  # false when Claude quota is short -> other harnesses only
+  prohibited: []
+  # Where a row lists alternatives (`a | b`), pick per availability and per task, and SAY which
+  # you picked and why. Never silently drop a tier. If the judge errors, fall back to the next
+  # strongest and say so; never silently downgrade judging to a small model.
+
+reviewers:                         # who reviews what; may change mid-run (edit here, say so, log it)
+  contract_stages: <model>         # before dependents start
+  milestone_end:   <model>
+  findings: pr-comment-before-fix  # review findings go on the PR as a comment before any fix commit
+
+heavy_lifting: <name the worker carrying the bulk, explicitly>
+max_concurrent_heavy: 2            # Windows: 0xC0000142 above this
+
+artifacts: _runs/<YYYY-MM-DD>-M<n>/{briefs,reports,evidence}   # one run folder per milestone, never committed
+notify: on-milestone-ready
+
+dashboard:                         # optional; only when the owner asks for a tracker
+  url: <claude.ai artifact url>    # published from dashboard/tracker.html, see dashboard/SCHEMA.md
+  update: every-stage-transition + every-iteration   # status/meta on transitions; one log entry (with ref) per build/review/fix round
+  added_items: origin-added        # anything created after planning carries origin:"added" + addedReason
+
+environment:                       # fill in BEFORE building; these are the ones that bite
+  local_db_resolves_to: <verify it, do not assume>
+  writes_reach_production: <yes/no — if yes, fix it first>
+  paid_calls: <which actions cost money, and how much per unit>
+  forbidden_paths: []              # trees no agent may touch

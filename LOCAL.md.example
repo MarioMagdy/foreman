@@ -1,0 +1,30 @@
+# foreman - local environment (example)
+
+Copy to `LOCAL.md` beside SKILL.md and fill in. SKILL.md reads it when present; it is never committed.
+Everything here is optional; with no LOCAL.md the foreman asks the owner and fills `defaults.yaml` per job.
+
+## Worker routing
+
+| Role | Worker | Notes |
+|---|---|---|
+| main builder | `<harness/model-version>` | e.g. an opencode or Claude Agent model |
+| simple | `<model>` | |
+| harder | `<model>` | |
+| UI work | `<model>` | give it a mechanics-level brief |
+| advisor | `<model>` | deepest thinker you have |
+| milestone review | `<model>` | fallback `<model>` |
+| contract stages | `<model>` | |
+
+Concurrency limits (e.g. "only one opencode run at a time", "max 2 heavy agents").
+
+## Accounts
+
+Which account or key each harness uses, by env var NAME only. Never put a secret value here.
+
+## Paths
+
+Where your prototype and deployed copies live, where scorecards are logged, known tracker URLs.
+
+## Owner conventions
+
+Base branch, release rules, where review findings go.

@@ -1,0 +1,268 @@
+{
+  "writes": [
+    {
+      "op": "set",
+      "collection": "meta",
+      "doc_id": "state",
+      "data": {
+        "project": "Invoice export",
+        "subtitle": "Sample plan: shows every feature of the tracker",
+        "focus": "Stage 2.1 export screen is being built; the contract and API are merged.",
+        "waitingOn": "Owner: merge decision on PR #14 (stage 1.2).",
+        "updated": "2026-09-30T09:40:00Z"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "milestones",
+      "doc_id": "M1",
+      "data": {
+        "order": 1,
+        "title": "Export contract and API",
+        "tryIt": "call GET /invoices/export?month=2026-09 and get a CSV with one row per invoice.",
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "milestones",
+      "doc_id": "M2",
+      "data": {
+        "order": 2,
+        "title": "Export screen",
+        "tryIt": "pick a month on the Invoices page, press Export, open the downloaded CSV.",
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "stages",
+      "doc_id": "1.1",
+      "data": {
+        "sid": "1.1",
+        "milestone": "M1",
+        "order": 1,
+        "status": "merged",
+        "title": "Export contract",
+        "worker": "sonnet-5.5",
+        "depends": [],
+        "note": "CSV columns, encoding and the month filter fixed in docs/contracts/EXPORT.md",
+        "pr": "https://github.com/example/invoices/pull/12",
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "stages",
+      "doc_id": "1.2",
+      "data": {
+        "sid": "1.2",
+        "milestone": "M1",
+        "order": 2,
+        "status": "ready",
+        "title": "Export endpoint",
+        "worker": "deepseek-v4.1-flash",
+        "depends": [
+          "1.1"
+        ],
+        "pr": "https://github.com/example/invoices/pull/14",
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "stages",
+      "doc_id": "1.2a",
+      "data": {
+        "sid": "1.2a",
+        "milestone": "M1",
+        "order": 2.5,
+        "status": "merged",
+        "title": "Stream large exports",
+        "worker": "sonnet-5.5",
+        "depends": [
+          "1.2"
+        ],
+        "note": "A 40k-invoice month ran out of memory in the gate; rows now stream.",
+        "origin": "added",
+        "addedAt": "2026-09-29T16:10:00Z",
+        "addedReason": "Found in the 1.2 gate: memory blow-up on large months."
+      }
+    },
+    {
+      "op": "set",
+      "collection": "stages",
+      "doc_id": "2.1",
+      "data": {
+        "sid": "2.1",
+        "milestone": "M2",
+        "order": 1,
+        "status": "running",
+        "title": "Export screen",
+        "worker": "gemini-flash",
+        "depends": [
+          "1.2"
+        ],
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "stages",
+      "doc_id": "2.2",
+      "data": {
+        "sid": "2.2",
+        "milestone": "M2",
+        "order": 2,
+        "status": "planned",
+        "title": "End-to-end test and test plan",
+        "worker": "foreman",
+        "depends": [
+          "2.1"
+        ],
+        "origin": "planned"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e001",
+      "data": {
+        "at": "2026-09-28T09:00:00Z",
+        "text": "Run sheet approved: milestones + stages, reviewer routing in the run sheet."
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e002",
+      "data": {
+        "at": "2026-09-28T10:05:00Z",
+        "text": "Contract draft committed.",
+        "ref": "1.1",
+        "kind": "build",
+        "round": 1,
+        "actor": "sonnet-5.5"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e003",
+      "data": {
+        "at": "2026-09-28T12:30:00Z",
+        "text": "9 findings: month boundaries in UTC vs local time undefined; no column order.",
+        "ref": "1.1",
+        "kind": "review",
+        "round": 1,
+        "verdict": "NO-GO",
+        "actor": "deep reviewer",
+        "link": "https://github.com/example/invoices/pull/12#issuecomment-1"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e004",
+      "data": {
+        "at": "2026-09-28T12:50:00Z",
+        "text": "Fix brief with rulings: months are UTC; fixed column order; rejected the proposed export queue (not needed).",
+        "ref": "1.1",
+        "kind": "decision",
+        "actor": "foreman"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e005",
+      "data": {
+        "at": "2026-09-28T14:10:00Z",
+        "text": "All 9 findings answered in the contract.",
+        "ref": "1.1",
+        "kind": "fix",
+        "round": 2,
+        "actor": "sonnet-5.5"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e006",
+      "data": {
+        "at": "2026-09-28T15:00:00Z",
+        "text": "9 of 9 closed.",
+        "ref": "1.1",
+        "kind": "review",
+        "round": 2,
+        "verdict": "GO",
+        "actor": "deep reviewer"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e007",
+      "data": {
+        "at": "2026-09-29T11:00:00Z",
+        "text": "Endpoint built; 42 tests pass.",
+        "ref": "1.2",
+        "kind": "build",
+        "round": 1,
+        "actor": "deepseek-v4.1-flash"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e008",
+      "data": {
+        "at": "2026-09-29T15:40:00Z",
+        "text": "Foreman gate: 40k-row month used 3 GB. Added stage 1.2a.",
+        "ref": "1.2",
+        "kind": "review",
+        "round": 1,
+        "verdict": "GO WITH CHANGES",
+        "actor": "foreman"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e009",
+      "data": {
+        "at": "2026-09-29T19:20:00Z",
+        "text": "Streaming writer; peak memory 60 MB on the same month.",
+        "ref": "1.2a",
+        "kind": "build",
+        "round": 1,
+        "actor": "sonnet-5.5"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e010",
+      "data": {
+        "at": "2026-09-30T08:30:00Z",
+        "text": "M1 test plan written; owner can try the API.",
+        "ref": "M1",
+        "kind": "note",
+        "actor": "foreman"
+      }
+    },
+    {
+      "op": "set",
+      "collection": "log",
+      "doc_id": "e011",
+      "data": {
+        "at": "2026-09-30T09:40:00Z",
+        "text": "Export screen brief dispatched.",
+        "ref": "2.1",
+        "kind": "build",
+        "round": 1,
+        "actor": "gemini-flash"
+      }
+    }
+  ]
+}
