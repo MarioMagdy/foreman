@@ -163,6 +163,15 @@ the page says so and hides them.
 above. Omitting `capabilities` on a republish keeps the old declaration, so a tracker first published with only
 `{db:{}}` would never get `user`. Existing data renders unchanged; new fields are optional.
 
+## Run mode: `run.json` beside the page
+
+When a file `run.json` sits next to the page (same folder locally, or published with the Artifact as
+`files: {"run.json": ...}`), the page renders it instead of the database, read-only, and re-reads it
+every 10 s. It has the same `meta`, `milestones`, `stages` and `log` shapes as above, plus a `run`
+object for track mode: `attention`, `staffing`, `jobs`, `pool`, `handoffs` (per stage) and `files`.
+`track-mode/live.py build` writes it from a run's `_coord/` folder. It is plain JSON and may be edited
+by hand; nothing in the HTML changes per project.
+
 ## Testing without the runtime
 
 Opened outside claude.ai (or with no database), the page shows a "no database" state with a **Show sample data**

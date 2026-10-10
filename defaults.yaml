@@ -4,6 +4,25 @@
 plan: <path to the agreed plan>
 repos: [<repo or worktree pair>]
 
+# ---- REQUIRED: filled by the architect pass. A run sheet with any of these blank is not ready. ----
+architecture:
+  critical_path: [<stage>, <stage>, ...]       # longest chain of `needs`
+  tracks:                                       # chains that progress without waiting on each other
+    - { id: <A>, stages: [<stage>, ...], files: [<paths this track owns>] }
+  joins:                                        # stages needing two tracks; own stage, own tests
+    - { stage: <id>, needs_tracks: [<A>, <B>], owner: <manager id> }   # single mode: the orchestrator
+  width: <n>                                    # most stages that could run at once
+  effective_parallelism: <n>                    # min(width, worker slots, heavy cap, quotas, live managers) + why
+staffing: <single | tracks>                     # tracks -> one manager per track (SKILL.md "Track mode"); say why
+profile: _runs/<run>/_coord/profile.yaml        # copied from profiles/default.yaml; fallback chains pre-approved
+events: _runs/<run>/_coord/events/              # one JSONL file per actor, one line per hand-off
+plan_data: _runs/<run>/_coord/plan.yaml         # milestones + stages (needs, builder, track) for the live view
+restart:
+  check_in: every <30-60> min (CronCreate, created at start, deleted at the end)
+  rebuild_from: _runs/<run>/_coord/             # tracks/<id>.md + events + staffing.yaml
+standing_orders:                                # decisions made up front, with defaults and a named decider
+  - { question: <...>, default: <...>, decider: <owner | orchestrator | manager> }
+
 arrangement: milestones+stages     # milestones | milestones+stages | milestones+stages+steps
                                    # small job -> milestones only
                                    # steps only when one stage exceeds a worker's sitting
@@ -51,6 +70,7 @@ max_concurrent_heavy: 2            # Windows: 0xC0000142 above this
 
 artifacts: _runs/<YYYY-MM-DD>-M<n>/{briefs,reports,evidence}   # one run folder per milestone, never committed
 notify: on-milestone-ready
+owner_updates: every 1h            # from the profile; show it here so the owner confirms or changes it
 
 dashboard:                         # optional; only when the owner asks for a tracker
   url: <claude.ai artifact url>    # published from dashboard/tracker.html, see dashboard/SCHEMA.md

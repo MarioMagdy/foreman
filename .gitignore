@@ -9,3 +9,6 @@ _runs/
 _scratch/
 node_modules/
 *.log
+BASELINE-v2.md
+GREEN-v2.md
+__pycache__/

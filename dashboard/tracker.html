@@ -62,6 +62,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }   /* claude.ai's skeleton has this; a page opened elsewhere needs it too */
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
 .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 24px; }
 h1, h2, h3 { margin: 0; text-wrap: balance; }
@@ -214,6 +215,57 @@ dialog::backdrop { background: var(--scrim); }
 .form .where { font-size: .86rem; background: var(--added-soft); border: 1px dashed var(--added); border-radius: 6px; padding: 8px 10px; }
 .form .err { color: var(--v-nogo); font-size: .86rem; }
 .review { display: grid; gap: 8px; font-size: .9rem; }
+
+/* Track-mode run (rendered from a run's files by track-mode/live.py): only what changes a decision is on the
+   page; everything else is one click away in a sheet. */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 3px 12px; font-size: .84rem; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.tl text { font-family: var(--font-body); fill: var(--muted); font-size: 11px; }
+.tl .grp { font-weight: 600; fill: var(--ink); font-size: 12px; }
+.tl .sid { font-family: var(--font-mono); fill: var(--accent); font-size: 11.5px; }
+.tl .row { cursor: pointer; }
+.tl .row:hover .hit, .tl .row:focus-visible .hit { fill: var(--accent-soft); }
+.tl .hit { fill: transparent; }
+.tl .tick { stroke: var(--line); }
+.tl .now { stroke: var(--accent); stroke-dasharray: 3 3; }
+.mgrs { display: grid; gap: 10px; }
+.mgr { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; min-width: 0; }
+.mgr.sub { margin-left: 22px; border-left: 3px solid var(--accent-soft); }
+.mgr .h { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.mgr .h b { font-weight: 600; }
+.mgr .h .muted { font-size: .82rem; }
+.mgr .stg { display: flex; flex-wrap: wrap; gap: 6px; }
+.mgr .stg button { display: inline-flex; gap: 6px; align-items: center; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px 2px 8px; cursor: pointer; font-family: var(--font-mono); font-size: .8rem; color: var(--accent); }
+.mgr .stg button:hover { border-color: var(--accent); }
+.mgr .ag { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: .86rem; }
+.mgr .ag li { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
+.mgr .ag .who { font-weight: 500; }
+.mgr .flag { font-size: .82rem; color: var(--v-mid); }
+@media (max-width: 560px) { .mgr.sub { margin-left: 10px; } }
+.team { justify-self: start; font: inherit; font-size: .86rem; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
+.attn { border-color: var(--st-blocked-fg); }
+.attn .a { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: .9rem; text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; cursor: pointer; }
+.attn .a:first-of-type { border-top: 0; }
+.attn .a:hover { background: var(--accent-soft); }
+.attn .what-a { font-family: var(--font-mono); font-size: .8rem; font-weight: 500; }
+.attn .a.blocked .what-a { color: var(--st-blocked-fg); } .attn .a.question .what-a, .attn .a.staffing .what-a { color: var(--v-mid); }
+.attn .txt { overflow-wrap: anywhere; min-width: 0; }
+.live { color: var(--st-running-fg); font-weight: 500; }
+.tag-prov { font-size: .68rem; font-weight: 600; padding: 0 6px; border-radius: 4px; color: var(--st-briefed-fg); border: 1px dashed var(--st-briefed-fg); line-height: 1.5; }
+.srow .why { font-size: .82rem; color: var(--st-blocked-fg); overflow-wrap: anywhere; }
+.log .who { font-size: .8rem; color: var(--muted); }
+.hand { list-style: none; margin: 0; padding: 0; display: grid; font-size: .84rem; }
+.hand li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.hand time { font-family: var(--font-mono); font-size: .76rem; color: var(--muted); }
+.hand .rt { font-weight: 500; }
+.hand .x { color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+details.more > summary { cursor: pointer; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+details.more[open] > summary { margin-bottom: 6px; }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; }
+.tree ul { margin-left: 10px; padding-left: 12px; border-left: 1.5px solid var(--line); }
+pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg); border-radius: 6px; padding: 8px 10px; }
 </style>
 
 <div class="wrap" id="app">
@@ -227,18 +279,31 @@ dialog::backdrop { background: var(--scrim); }
       <div><b>Now:</b> <span id="focus">Loading the build state…</span></div>
       <div><b>Waiting on:</b> <span id="waiting">—</span></div>
       <div class="muted" id="updated"></div>
+      <button class="team" id="team" data-act="team" hidden></button>
       <span class="source" id="source" hidden></span>
     </div>
   </header>
+
+  <section class="panel attn" id="attn" aria-labelledby="a-title" hidden>
+    <div class="panel-head"><h2 id="a-title">Needs attention</h2><span class="muted" style="font-size:.8rem">Click a line for the stage and its hand-offs.</span></div>
+    <div id="attn-list"></div>
+  </section>
 
   <nav class="strip" id="strip" aria-label="Milestones"></nav>
 
   <section class="panel" aria-labelledby="g-title">
     <div class="panel-head">
       <h2 id="g-title">What depends on what</h2>
-      <div class="legend" id="legend"></div>
+      <div class="seg" id="seg" role="group" aria-label="Show as" hidden><button data-act="pane" data-pane="map" aria-pressed="true">Map</button><button data-act="pane" data-pane="time" aria-pressed="false">Timeline</button></div>
     </div>
+    <div class="legend" id="legend"></div>
     <div class="graph-scroll" id="graph"><div class="state">The stage graph appears once the build state loads.</div></div>
+    <div class="graph-scroll" id="timeline" hidden></div>
+  </section>
+
+  <section class="panel" id="mgrs" aria-labelledby="m-title" hidden>
+    <div class="panel-head"><h2 id="m-title">Managers and their agents</h2><span class="muted" style="font-size:.8rem">Who runs which stages, and which agents are working for them now.</span></div>
+    <div class="mgrs" id="mgr-list"></div>
   </section>
 
   <div id="sections" style="display:grid;gap:28px"></div>
@@ -252,6 +317,7 @@ dialog::backdrop { background: var(--scrim); }
 </div>
 
 <dialog id="sheet" aria-labelledby="sheet-title"><div class="sheet" id="sheet-body"></div></dialog>
+
 
 <!-- Sample plan for ?demo / #demo / "Show sample data". Same content as dashboard/seed-example.json (ArtifactData batch format). -->
 <script type="application/json" id="demo-data">
@@ -299,7 +365,14 @@ dialog::backdrop { background: var(--scrim); }
   let mode = "loading";            // live | demo | fixture | none
   let db = null, user = null, myId = null, canWrite = false;
   let milestones = [], stages = [], meta = null, log = [];
+  let run = null;                   // track-mode extras: attention, staffing, jobs, pool, handoffs, files
   const names = {};                 // authorId -> display name (resolved at render, never stored)
+  const ago = (iso) => {             // durations measured to the run's last event when that is later than now (a replay)
+    const end = Math.max(Date.now(), new Date((meta && meta.updated) || 0).getTime());
+    const m = Math.max(0, Math.round((end - new Date(iso).getTime()) / 60000));
+    return m < 60 ? `${m} min` : m < 2880 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`;
+  };
+  const jobLine = (j) => j ? `${j.status === "running" ? "running" : "queued"} ${ago(j.started || j.submitted)} · ${esc(String(j.model || "").split("/").pop())}` : "";
 
   $("legend").innerHTML = Object.keys(STATUS).map(chip).join("") +
     ' <span class="tag-added">added</span><span class="note">= created after planning</span>';
@@ -353,7 +426,9 @@ dialog::backdrop { background: var(--scrim); }
     const src = $("source");
     src.hidden = mode === "loading";
     src.className = "source" + (mode === "demo" || mode === "fixture" ? " demo" : "");
-    src.textContent = mode === "live" ? "live" : mode === "demo" ? "sample data, changes are not saved" : mode === "fixture" ? "fixture" : "no database";
+    src.textContent = mode === "live" ? "live" : mode === "demo" ? "sample data, changes are not saved" : mode === "fixture" ? "fixture"
+      : mode === "run" ? `from run.json · built ${fmtTime(run.built)} · re-read every 10 s` : "no database";
+    renderRun();
 
     if (mode === "none") return renderNoDb();
     const byMs = byMilestone();
@@ -369,16 +444,18 @@ dialog::backdrop { background: var(--scrim); }
     $("strip").innerHTML = milestones.map(m => {
       const l = byMs[m.id] || [];
       const done = l.filter(s => DONE.has(s.status)).length;
+      const ready = l.filter(s => s.status === "ready").length;
       const pct = l.length ? Math.round(done / l.length * 100) : 0;
       return `<button class="ms${isAdded(m) ? " is-added" : ""}" data-open-ms="${esc(m.id)}" aria-label="Open milestone ${esc(m.id)}">
         <div class="top"><span class="id">${esc(m.id)}${addedTag(m)}</span>${chip(msStatus(m, l))}</div>
         <div class="t">${esc(m.title)}</div>
         <div class="bar" role="img" aria-label="${done} of ${l.length} stages merged"><i style="width:${pct}%"></i></div>
-        <div class="count">${done} / ${l.length} stages merged</div>
+        <div class="count">${done} / ${l.length} stages merged${ready ? ` · ${ready} ready` : ""}</div>
       </button>`;
     }).join("");
 
     renderGraph(byMs);
+    renderTimeline();
 
     const parts = [];
     milestones.forEach((m, mi) => {
@@ -390,9 +467,9 @@ dialog::backdrop { background: var(--scrim); }
         const last = iters[iters.length - 1];
         rows.push(`<button class="srow${isAdded(s) ? " is-added" : ""}" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}: ${esc(s.title)}">
           <span class="sid">${esc(s.sid)}</span>
-          <span class="what"><span class="t">${esc(s.title)}${addedTag(s)}</span>
-            <span class="meta"><span>${esc(s.worker || "unassigned")}</span><span class="mono">needs ${esc((s.depends || []).join(", ") || "—")}</span>${iters.length ? `<span>${iters.length} iteration${iters.length > 1 ? "s" : ""}${last && last.verdict ? ` · last <span class="verdict ${verdictCls(last.verdict)}">${esc(last.verdict)}</span>` : ""}</span>` : ""}</span>
-            ${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}</span>
+          <span class="what"><span class="t">${esc(s.title)}${addedTag(s)}${s.provisional_on && s.status !== "ready" ? ` <span class="tag-prov" title="Started before ${esc(s.provisional_on)} passed its gate; rebased if it changes">provisional on ${esc(s.provisional_on)}</span>` : ""}</span>
+            <span class="meta">${s.manager ? `<span>manager ${esc(s.manager)}</span>` : ""}<span>${esc(s.worker || "unassigned")}</span>${s.job ? `<span class="live">${jobLine(s.job)}</span>` : ""}<span class="mono">needs ${esc((s.depends || []).join(", ") || "—")}</span>${iters.length ? `<span>${iters.length} iteration${iters.length > 1 ? "s" : ""}${last && last.verdict ? ` · last <span class="verdict ${verdictCls(last.verdict)}">${esc(last.verdict)}</span>` : ""}</span>` : ""}</span>
+            ${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}${s.why ? `<span class="why">${esc(s.why)}</span>` : ""}</span>
           <span class="right">${chip(s.status)}${safeUrl(s.pr) ? '<span class="count">PR</span>' : ""}</span>
         </button>`);
       });
@@ -424,11 +501,14 @@ dialog::backdrop { background: var(--scrim); }
     const ref = e.ref && (findStage(e.ref) || findMs(e.ref)) ? `<button class="refbtn" data-open-ref="${esc(e.ref)}">${esc(e.ref)}</button>` : (e.ref ? `<span class="kind">${esc(e.ref)}</span>` : "");
     const kind = e.kind ? `<span class="kind">${esc(e.kind)}${e.round ? " r" + esc(e.round) : ""}</span>` : "";
     const v = e.verdict ? `<span class="verdict ${verdictCls(e.verdict)}">${esc(e.verdict)}</span>` : "";
-    return `<div class="e"><time>${esc(fmtTime(entryTime(e)))}</time><span class="body">${ref}${kind}${v}<span class="txt">${esc(e.text)}</span>${isAdded(e) ? '<span class="tag-added">added</span>' : ""}</span></div>`;
+    const who = mode === "run" && e.actor ? `<span class="who">${esc(e.actor)}:</span>` : "";
+    return `<div class="e"><time>${esc(fmtTime(entryTime(e)))}</time><span class="body">${ref}${kind}${v}${who}<span class="txt">${esc(e.text)}</span>${isAdded(e) ? '<span class="tag-added">added</span>' : ""}</span></div>`;
   }
   function renderLog() {
-    const sorted = [...log].sort((a, b) => String(entryTime(b)).localeCompare(String(entryTime(a)))).slice(0, 30);
-    $("log").innerHTML = sorted.length ? sorted.map(logLine).join("") : '<div class="muted">No activity recorded yet.</div>';
+    const sorted = [...log].sort((a, b) => String(entryTime(b)).localeCompare(String(entryTime(a))));
+    const open = $("log").querySelector("details[open]") != null;
+    $("log").innerHTML = !sorted.length ? '<div class="muted">No activity recorded yet.</div>'
+      : sorted.slice(0, 8).map(logLine).join("") + (sorted.length > 8 ? `<details class="more"${open ? " open" : ""}><summary style="padding-top:8px">${sorted.length - 8} older entries</summary>${sorted.slice(8, 200).map(logLine).join("")}</details>` : "");
   }
 
   function renderGraph(byMs) {
@@ -485,10 +565,153 @@ dialog::backdrop { background: var(--scrim); }
       const added = isAdded(s);
       nodes += `<g class="gnode" tabindex="0" role="button" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}"><title>${esc(s.sid + " " + t + " — " + STATUS[st] + (added ? " (added after planning)" : ""))}</title>
         <rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="7" style="fill:var(--st-${st});stroke:${added ? "var(--added)" : "var(--line)"};stroke-width:${added ? 2 : 1}${added ? ";stroke-dasharray:5 3" : ""}"/>
-        <text x="${x + 10}" y="${y + 18}" style="fill:var(--st-${st}-fg);font-family:var(--font-mono);font-size:11.5px;font-weight:500">${esc(s.sid)}${added ? " +" : ""}</text>
+        <text x="${x + 10}" y="${y + 18}" style="fill:var(--st-${st}-fg);font-family:var(--font-mono);font-size:11.5px;font-weight:500">${esc(s.sid)}${added ? " +" : ""}${s.manager ? " · " + esc(s.manager) : ""}${s.provisional_on && st !== "ready" ? " · prov." : ""}</text>
         <text x="${x + 10}" y="${y + 35}" style="fill:var(--st-${st}-fg);font-size:12.5px">${esc(title)}</text></g>`;
     });
     $("graph").innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Stage dependency graph, one lane per milestone">${bands}${edges}${nodes}</svg>`;
+  }
+
+  // ---- track-mode run: attention, team, hand-offs ----------------------------
+  function renderRun() {
+    $("team").hidden = $("attn").hidden = $("mgrs").hidden = $("seg").hidden = true;
+    if (mode !== "run" || !run) return;
+    $("seg").hidden = false;
+    const mgrs = (run.staffing || []).filter(r => r.status !== "retired");
+    const live = mgrs.filter(r => r.status === "active").length;
+    const busy = (run.jobs || []).filter(j => j.status === "running").length;
+    const queued = (run.jobs || []).filter(j => j.status === "queued").length;
+    $("team").hidden = false;
+    $("team").textContent = `${live ? `${live} manager${live > 1 ? "s" : ""}` : "Single mode"} · ${busy}/${run.pool && run.pool.slots || "?"} worker slots busy` +
+      `${queued ? ` · ${queued} queued` : ""}${run.pool && run.pool.stopped ? " · launcher stopped" : ""} ›`;
+    const items = run.attention || [];
+    const warn = (run.warnings || []).map(w => ({ type: "blocked", ref: "", text: w }));
+    $("attn").hidden = !items.length && !warn.length;
+    const label = { blocked: "stuck", question: "question", staffing: "staff request" };
+    $("attn-list").innerHTML = warn.concat(items).map(a => `<button class="a ${esc(a.type)}" ${a.ref && findStage(a.ref) ? `data-open-ref="${esc(a.ref)}"` : 'data-act="team"'}>
+      <span class="what-a">${esc(label[a.type] || a.type)} ${esc(a.qid || a.ref || "")}</span>
+      <span class="txt">${esc(a.text)}${a.from ? ` <span class="muted">· ${esc(a.from)} → ${esc(a.to || "orchestrator")}, ${esc(fmtTime(a.at))}</span>` : ""}</span></button>`).join("");
+    renderManagers(mgrs);
+  }
+
+  // The orchestrator manages managers; managers manage stages and the agents working on them.
+  const askText = (a) => { const id = a.qid || a.ref || ""; return String(a.text || "").startsWith(id) ? a.text : `${id}: ${a.text}`; };
+  function renderManagers(mgrs) {
+    if (!mgrs.length) return;      // single mode: the orchestrator runs the stages itself
+    $("mgrs").hidden = false;
+    const ownerOf = (s) => String(s.manager || s.track || "");
+    const asks = (run.attention || []).filter(a => a.type !== "blocked");
+    const orch = asks.filter(a => !a.to || a.to === "orchestrator");
+    const top = mgrs.filter(r => String(r.parent ?? "top") === "top");
+    let html = `<div class="mgr"><div class="h"><b>Orchestrator</b><span class="muted">the owner's session · manages ${top.map(r => "manager " + esc(r.id)).join(", ")}</span></div>
+      ${orch.length ? orch.map(a => `<div class="flag">Waiting on it, from ${esc(a.from)}: ${esc(askText(a))}</div>`).join("") : '<div class="muted" style="font-size:.86rem">Nothing waiting on it.</div>'}</div>`;
+    const card = (r, depth) => {
+      const id = String(r.id);
+      const own = stages.filter(s => ownerOf(s) === id);
+      const jobs = (run.jobs || []).filter(j => String(j.actor) === id && (j.status === "running" || j.status === "queued"));
+      const mine = asks.filter(a => a.from === "manager " + id);
+      const stuck = own.filter(s => s.status === "blocked" && !(s.why || "").startsWith("waiting on "));
+      const subs = mgrs.filter(x => String(x.parent) === id);
+      html += `<div class="mgr${depth ? " sub" : ""}" style="margin-left:${depth * 22}px">
+        <div class="h"><b>Manager ${esc(id)}</b><span>${esc(r.track || "")}</span><span class="muted">${esc(r.model || "")}${String(r.parent ?? "top") !== "top" ? " · under manager " + esc(r.parent) : ""}${subs.length ? " · manages " + subs.map(x => "manager " + esc(x.id)).join(", ") : ""}</span>
+          <span class="chip s-${r.status === "active" ? "running" : r.status === "requested" ? "verifying" : "planned"}">${esc(r.status || "?")}</span></div>
+        ${r.status === "requested" && r.why ? `<div class="flag">Asked for: “${esc(r.why)}”</div>` : ""}
+        ${own.length ? `<div class="stg">${own.map(s => `<button data-open-stage="${esc(s.sid)}">${esc(s.sid)} ${chip(s.status)}</button>`).join("")}</div>` : ""}
+        <ul class="ag">${jobs.length ? jobs.map(j => `<li><span class="who">${esc(String(j.model).split("/").pop())}</span><span>${esc(j.role)} on <span class="mono">${esc(j.stage)}</span></span><span class="live">${j.status === "running" ? "running" : "queued"} ${ago(j.started || j.submitted)}</span></li>`).join("")
+          : '<li class="muted">No agents working for it right now.</li>'}</ul>
+        ${mine.map(a => `<div class="flag">Asked the ${esc(a.to || "orchestrator")}: ${esc(askText(a))}</div>`).join("")}
+        ${stuck.map(s => `<div class="flag" style="color:var(--st-blocked-fg)">${esc(s.sid)} stuck: ${esc(s.why || "")}</div>`).join("")}
+      </div>`;
+      subs.forEach(x => card(x, depth + 1));
+    };
+    top.forEach(r => card(r, 1));
+    const files = Object.entries(run.files || {}).map(([n, t]) => `<details class="more"><summary>${esc(n)}</summary><pre class="file">${esc(t)}</pre></details>`).join("");
+    $("mgr-list").innerHTML = html + (files ? `<details class="more"><summary>Track files (${Object.keys(run.files).length})</summary><div style="display:grid;gap:6px">${files}</div></details>` : "");
+  }
+
+  // Timeline: one bar per started stage, grouped by its manager, coloured by phase.
+  const PHASE = { build: ["Building", "var(--st-running)"], fix: ["Fixing", "var(--st-fixing)"], verify: ["Manager verifying", "var(--st-verifying)"],
+                  review: ["In review", "var(--st-review)"], wait: ["Waiting", "var(--st-planned)"] };
+  function phasesOf(s) {
+    const hs = (run.handoffs || {})[s.sid] || [], out = [], marks = [];
+    let cur = null;
+    const stop = (ts) => { if (cur) { cur.end = ts; out.push(cur); cur = null; } };
+    const go = (kind, ts) => { stop(ts); cur = { kind, start: ts }; };
+    hs.forEach(h => {
+      const to = h.to || "", a = h.actor || "", v = String(h.verdict || "").toUpperCase();
+      if (h.kind === "brief") go(to.startsWith("reviewer:") ? "review" : "build", h.ts);
+      else if (h.kind === "fix_brief") go("fix", h.ts);
+      else if (h.kind === "handback" && !a.startsWith("reviewer:")) go("verify", h.ts);
+      else if (h.kind === "verdict") { if (/^GO\b/.test(v) && !/WITH/.test(v)) { stop(h.ts); marks.push({ k: "ready", ts: h.ts, t: "ready: " + (h.summary || "") }); } else go("wait", h.ts); }
+      else if (["hang", "quota", "failed"].includes(h.kind)) marks.push({ k: "stuck", ts: h.ts, t: h.kind + ": " + (h.summary || "") });
+      else if (h.kind === "question") { go("wait", h.ts); marks.push({ k: "ask", ts: h.ts, t: h.summary || "" }); }
+      else if (h.kind === "answer") stop(h.ts);
+      else if (h.kind === "fallback") marks.push({ k: "switch", ts: h.ts, t: "fallback: " + (h.summary || "") });
+    });
+    if (cur) out.push(cur);          // still open: runs to the last event
+    return { out, marks };
+  }
+  function renderTimeline() {
+    const box = $("timeline");
+    if (mode !== "run" || !run) { box.innerHTML = ""; return; }
+    const ms = (iso) => new Date(iso).getTime();
+    const ownerOf = (s) => String(s.manager || s.track || "");
+    const order = []; const walk = (p) => (run.staffing || []).filter(r => String(r.parent ?? "top") === p).forEach(r => { order.push(String(r.id)); walk(String(r.id)); });
+    walk("top");
+    const started = stages.filter(s => ((run.handoffs || {})[s.sid] || []).length);
+    if (!started.length) { box.innerHTML = '<div class="state">The timeline starts with the first brief.</div>'; return; }
+    const groups = order.concat([...new Set(started.map(ownerOf))].filter(o => !order.includes(o)))
+      .map(id => ({ id, list: started.filter(s => ownerOf(s) === id).sort((a, b) => ms(run.handoffs[a.sid][0].ts) - ms(run.handoffs[b.sid][0].ts)) }))
+      .filter(g => g.list.length);
+    const t0 = Math.min(...started.map(s => ms(run.handoffs[s.sid][0].ts))), t1 = ms(meta && meta.updated || Date.now());
+    const hours = Math.max(1, (t1 - t0) / 3.6e6), PPH = Math.max(10, Math.min(60, 880 / hours));
+    const LBL = 168, ROW = 26, GH = 26, TOP = 30, x = (t) => LBL + (ms(t) - t0) / 3.6e6 * PPH;
+    const W = Math.ceil(LBL + hours * PPH + 24);
+    let y = TOP, body = "";
+    groups.forEach(g => {
+      const r = (run.staffing || []).find(m => String(m.id) === g.id);
+      body += `<text class="grp" x="4" y="${y + 17}">${esc(r ? "Manager " + g.id + " · " + (r.track || "") : g.id || "no manager")}</text>`; y += GH;
+      g.list.forEach(s => {
+        const { out, marks } = phasesOf(s), mid = y + ROW / 2;
+        body += `<g class="row" tabindex="0" role="button" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${ROW}" rx="4"/>
+          <text class="sid" x="14" y="${mid + 4}">${esc(s.sid)}</text><text x="56" y="${mid + 4}">${esc(String(s.title).slice(0, 15))}${String(s.title).length > 15 ? "…" : ""}</text>`;
+        out.forEach(p => {
+          const a = x(p.start), b = Math.max(a + 3, x(p.end || (s.status === "ready" ? p.start : new Date(t1).toISOString())));
+          body += `<rect x="${a}" y="${mid - 7}" width="${b - a}" height="14" rx="3" style="fill:${PHASE[p.kind][1]};stroke:var(--line)${s.provisional_on && s.status !== "ready" ? ";stroke-dasharray:4 2" : ""}"><title>${esc(s.sid + " " + PHASE[p.kind][0] + ", " + fmtTime(p.start) + (p.end ? " to " + fmtTime(p.end) : ", still open"))}</title></rect>`;
+        });
+        marks.forEach(m => {
+          const cx = x(m.ts), c = { stuck: "var(--st-blocked-fg)", ask: "var(--v-mid)", ready: "var(--v-go)", switch: "var(--added)" }[m.k];
+          body += m.k === "ready" ? `<path d="M${cx - 4},${mid} l3,4 l6,-8" style="fill:none;stroke:${c};stroke-width:2.2"><title>${esc(m.t)}</title></path>`
+            : `<circle cx="${cx}" cy="${mid}" r="4.5" style="fill:${c};stroke:var(--surface);stroke-width:1.5"><title>${esc(m.t)}</title></circle>`;
+        });
+        body += `</g>`; y += ROW;
+      });
+    });
+    let axis = "";
+    for (let d = new Date(t0); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), dx = LBL + Math.max(0, (day - t0) / 3.6e6 * PPH);
+      axis += `<line class="tick" x1="${dx}" x2="${dx}" y1="16" y2="${y}"/><text x="${dx + 4}" y="12">${esc(new Date(Math.max(day, t0)).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }))}</text>`;
+    }
+    axis += `<line class="now" x1="${x(new Date(t1).toISOString())}" x2="${x(new Date(t1).toISOString())}" y1="16" y2="${y}"/>`;
+    const legend = Object.values(PHASE).map(([n, c]) => `<span class="chip" style="background:${c};color:var(--ink)">${esc(n)}</span>`).join("") +
+      ' <span class="note">● stuck (hang, quota, failed) &nbsp; ● question &nbsp; ✓ passed its gate &nbsp; dashed = provisional &nbsp; dotted line = last event</span>';
+    box.innerHTML = `<div class="legend" style="margin-bottom:8px">${legend}</div><svg class="tl" width="${W}" height="${y + 8}" viewBox="0 0 ${W} ${y + 8}" role="group" aria-label="Stage timeline by manager">${axis}${body}</svg>`;
+  }
+  let pane = "map";
+  function showPane(p) {
+    pane = p;
+    $("graph").hidden = p !== "map"; $("legend").hidden = p !== "map"; $("timeline").hidden = p !== "time";
+    document.querySelectorAll("#seg button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.pane === p)));
+  }
+  function handoffs(ref) {
+    const list = run && run.handoffs && run.handoffs[ref];
+    if (!list || !list.length) return "";
+    const short = (a) => { const [r, rest] = String(a || "").split(/:(.*)/s); return r === "manager" ? "manager " + rest : rest ? rest.split("/").pop() : r; };
+    return `<details class="more sec"><summary>Every hand-off (${list.length})</summary><ol class="hand">${list.map(h => {
+      const spent = [h.secs != null ? `${Math.round(h.secs / 60)} min` : "", h.tokens != null ? `${h.tokens.toLocaleString()} tokens` : "", h.cost ? `$${h.cost}` : ""].filter(Boolean).join(" · ");
+      const extra = [h.artifact, h.job ? "job " + h.job : "", spent, "logged in events/" + h.file].filter(Boolean).join(" · ");
+      return `<li><time>${esc(fmtTime(h.ts))}</time><div><div><span class="kind">${esc(h.kind)}</span> <span class="rt">${esc(short(h.actor))}${h.to ? " → " + esc(short(h.to)) : ""}</span></div>
+        <div>${esc(h.summary || "")}</div><div class="x">${esc(extra)}</div></div></li>`;
+    }).join("")}</ol></details>`;
   }
 
   // ---- detail sheet ----------------------------------------------------------
@@ -534,15 +757,19 @@ dialog::backdrop { background: var(--scrim); }
       <div class="sheet-head"><div class="ttl"><span class="mono muted">stage ${esc(s.sid)} · ${esc(s.milestone)}${ms ? " " + esc(ms.title) : ""}</span>
         <h2 id="sheet-title">${esc(s.title)}</h2><div class="row">${chip(s.status)}${addedTag(s)}</div></div>
         <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
+      ${s.why ? `<p class="why" style="color:var(--st-blocked-fg)">${esc(s.why)}</p>` : ""}
       <dl class="fields">
-        <dt>Worker</dt><dd>${esc(s.worker || "unassigned")}</dd>
+        ${s.manager ? `<dt>Manager</dt><dd>${esc(s.manager)}${s.track ? " · track " + esc(s.track) : ""}</dd>` : ""}
+        <dt>Worker</dt><dd>${esc(s.worker || "unassigned")}${s.job ? ` · <span class="live">${jobLine(s.job)}</span>` : ""}</dd>
+        ${s.provisional_on ? `<dt>Provisional on</dt><dd>${esc(s.provisional_on)}: started before it passed its gate; never ready before it; rebased if it changes</dd>` : ""}
         <dt>Needs</dt><dd class="mono">${(s.depends || []).length ? s.depends.map(d => findStage(d) ? `<button class="refbtn" data-open-ref="${esc(d)}">${esc(d)}</button>` : esc(d)).join(" ") : "—"}</dd>
         ${pr ? `<dt>PR</dt><dd><a href="${esc(pr)}" target="_blank" rel="noopener">${esc(pr.replace(/^https?:\/\//, ""))}</a></dd>` : ""}
         ${s.note ? `<dt>Note</dt><dd>${esc(s.note)}</dd>` : ""}
         ${originRows(s)}
       </dl>
       <div class="sec"><h3>Iterations</h3>${iterList(iters)}</div>
-      <div class="sec"><h3>Log</h3>${iterList(others)}<div>${noteButton(sid)}</div></div>`, { type: "stage", id: sid });
+      <div class="sec"><h3>Log</h3>${iterList(others)}<div>${noteButton(sid)}</div></div>
+      ${handoffs(sid)}`, { type: "stage", id: sid });
   }
   function msSheet(id) {
     const m = findMs(id);
@@ -745,6 +972,8 @@ dialog::backdrop { background: var(--scrim); }
     if (t.dataset.openRef) { const r = t.dataset.openRef; return findStage(r) ? stageSheet(r) : msSheet(r); }
     const act = t.dataset.act;
     if (act === "close") return sheet.close();
+    if (act === "team") return $("mgrs").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (act === "pane") { showPane(t.dataset.pane); return; }
     if (act === "demo") return loadDemo();
     if (act === "add-stage") return stageForm(t.dataset.ms, t.dataset.after || null, t.dataset.end === "1");
     if (act === "add-ms") return msForm(t.dataset.after || null);
@@ -788,7 +1017,28 @@ dialog::backdrop { background: var(--scrim); }
     render();
   }
 
+  function loadRun(st) {
+    // A track-mode run, built from its files by track-mode/live.py. Read-only: the plan lives in the run's files.
+    milestones = (st.milestones || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    stages = st.stages || []; log = st.log || []; meta = st.meta || null; run = st.run || {};
+    mode = "run"; canWrite = false;
+    render(); refreshSheet();
+  }
+
+  // A run.json beside the page (written by track-mode/live.py, or by hand) makes this a run view.
+  let lastRun = "";
+  async function readRun() {
+    try {
+      const r = await fetch("run.json", { cache: "no-store" });
+      if (!r.ok) return false;
+      const text = await r.text();
+      if (text !== lastRun) { lastRun = text; loadRun(JSON.parse(text)); }
+      return true;
+    } catch (e) { return false; }   // no run.json, or opened from disk: fall through to the tracker's other sources
+  }
+
   async function start() {
+    if (await readRun()) { setInterval(readRun, 10000); return; }
     if (window.__TRACKER_FIXTURE__) return loadFixture(window.__TRACKER_FIXTURE__);
     const wantDemo = /(^|[?&])demo(=|&|$)/.test(location.search.slice(1)) || location.hash === "#demo";
     if (wantDemo) return loadDemo();
