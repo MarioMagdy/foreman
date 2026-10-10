@@ -192,7 +192,7 @@ not write "observe the heading render" when no heading exists.
 ## Related skills — call them, do not reimplement
 
 `subagent-discipline` (every dispatch) · `council-judge` (large gates) · `verified-pr` (PR
-mechanics) · `visual-planning` (when the plan itself needs to be readable) · the project's own
+mechanics) · the project's own
 test skill, which the tester **executes** rather than improvises around. If one is not installed,
 do its job by hand as this file describes (a written brief and critique, a reviewer subagent, a
 plain PR) and say which one was missing.

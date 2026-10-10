@@ -102,7 +102,6 @@ The foreman calls these when they are installed and does their job by hand when 
 | `subagent-discipline` | Every brief and every post-run scorecard | Write the brief to the checklist above; note the worker's performance in the run folder |
 | `council-judge` | Multi-judge gates for large stages and milestones | One reviewer subagent at max effort, findings with evidence |
 | `verified-pr` | PR mechanics and review-gated pushes | Plain `gh pr create`, findings as a PR comment |
-| `visual-planning` | Making a big plan readable for the owner | A plain Markdown plan |
 | The project's test skill | What the tester executes | The tester follows the test plan by hand |
 
 ## Files
