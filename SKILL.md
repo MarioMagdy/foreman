@@ -10,7 +10,8 @@ hands the owner something he can run. **He does not swing the hammer.**
 
 **One exception, and it is not negotiable in the other direction:** verification is the foreman's
 own hands. Running tests, reading diffs, probing the running app, writing the test plan. Never
-delegate the check to the worker who did the work.
+delegate the check to the worker who did the work. (In track mode a track manager verifies its
+stages; it never builds, so the rule holds. The orchestrator still runs every milestone test plan.)
 
 **If `LOCAL.md` sits beside this file, read it first.** It holds this owner's worker routing, accounts
 and paths; it overrides the generic defaults below wherever they differ.
@@ -33,9 +34,11 @@ comments so they stay readable after they merge. Milestones stack on each other.
 
 ## Publish the run sheet, then stop
 
-Read the plan, emit `defaults.yaml` filled in for this job, and **wait for a yes before building
-anything.** The owner is choosing the arrangement, the workers and the gates; those are his calls,
-not yours. Copy `defaults.yaml` from this skill folder as the starting shape.
+Read the plan, do the architect pass (next section), emit `defaults.yaml` filled in for this job,
+and **wait for a yes before building anything.** The owner is choosing the arrangement, the workers
+and the gates; those are his calls, not yours. Copy `defaults.yaml` from this skill folder as the
+starting shape. Its `architecture`, `staffing`, `profile`, `events` and `restart` blocks are
+**required**: a run sheet with any of them blank is not ready to show.
 
 Filling it in:
 - **Arrangement scales with size.** Small job → milestones only. Medium/large → milestones+stages.
@@ -47,6 +50,30 @@ Filling it in:
 - If the owner wants a dashboard, add its URL under `dashboard:` once published.
 - **Base branch: use `main` unless the owner said otherwise.** If the repo has a `dev` and the job
   is non-trivial, ask once.
+
+## Architect pass (before the run sheet)
+
+Think like the architect of the run, not its first worker. Its outputs fill the run sheet's
+required blocks:
+
+1. **`architecture`** — draw the stage dependency graph. Write down: the **critical path** (the
+   longest chain of `needs`), the **tracks** (chains that can progress without waiting on each
+   other), the **joins** (stages that need two tracks; each is its own stage with its own tests and a named owner;
+   in track mode the owner is a manager, because the orchestrator manages managers, never stages), and the **width** (most stages that could run at once).
+2. **Effective parallelism** = the smallest of: width, worker slots (the launcher's pool, see track
+   mode), the heavy-agent cap, quotas, the live-manager cap. Order the riskiest and the contract
+   stages first, and keep parallel tracks out of the same files.
+3. **`staffing`** — `single` (this session runs everything) or `tracks` (one manager per track, see
+   track mode), with the reason.
+4. **`profile`** — models, fallback chains and caps, copied from `profiles/default.yaml` and
+   adjusted. Fallbacks listed here are **pre-approved**: once the owner says yes, a dead or
+   rate-limited model is replaced along its chain without asking again. Without an approved chain
+   a dead model stalls its stage until the owner answers.
+5. **`events`** and **`restart`** — where every hand-off is logged, and how each actor is rebuilt
+   from files if its session dies.
+6. **Questions up front, in one batch.** Every decision a stage could block on (access and keys,
+   authority, budget, which fallbacks may run, who decides what while the owner is away). Anything
+   unanswered gets a default and a named decider in `standing_orders`.
 
 ## Stage design
 
@@ -64,7 +91,15 @@ an advisor only gets to agree with you.
 
 Write one brief per stage. **REQUIRED SUB-SKILL:** use `subagent-discipline` for the brief and for
 the post-run critique. The brief carries the plan excerpt, the exact files, the acceptance check
-the worker runs itself, the project's standing rules, and *do not commit unless told*.
+the worker runs itself, the project's standing rules, and *do not commit unless told*. Every
+brief ends by requiring the worker's **status block** as the last thing it writes:
+
+```text
+STATUS: DONE      criteria: <n>/<N> self-checked · evidence: <paths>
+STATUS: UNSURE    question: <one line> · tried: <one line>
+STATUS: TOO_HARD  why: <one line>
+STATUS: BLOCKED   waiting on: <stage or input>
+```
 
 ## Plan files and run folders
 
@@ -81,7 +116,10 @@ the worker runs itself, the project's standing rules, and *do not commit unless 
 
 ## The stage loop
 
-1. **Dispatch** one worker with the brief.
+1. **Dispatch** one worker with the brief, once every stage it needs has passed its gate. If a
+   needed stage is built but not yet gated, and the interface used from it is frozen (contract or
+   committed signature), the stage may start **provisional**: mark it so on the tracker and in its
+   `brief` event, never call it ready before the stage it needs, and rebase it if that stage changes.
 2. **Verify from git and from execution.** Workers report false SUCCESS and false FAILURE. Read
    `git status`, `git log`, the diff; run the tests; run the app.
 3. **Gate** at the run sheet's level. Review findings go on the PR as a comment *before* any fix
@@ -92,7 +130,63 @@ the worker runs itself, the project's standing rules, and *do not commit unless 
    every finding in a table (`#n - accepted | accepted, simpler mechanism | rejected - reason`), and
    the re-review judges whether each hole is *closed*, not whether it matches the first proposal.
 5. **Ready**: open the stage PR, report it as ready, wait for the owner's word to merge.
-6. **Log** the worker (`subagent-discipline` scorecard) and update the dashboard (below).
+6. **Log** the worker (`subagent-discipline` scorecard), append the hand-off events (below), and
+   update the dashboard (below).
+
+**Events.** Every hand-off is one JSON line in the actor's own file
+`_runs/<run>/_coord/events/<actor>.jsonl` (one writer per file; readers merge by `ts`):
+`{"ts","actor","to","kind","ref","summary","artifact"}` with `kind` one of `brief`, `handback`,
+`status`, `clarification`, `criteria_change`, `review`, `verdict`, `fix_brief`, `verify`,
+`fallback`, `hang`, `quota`, `question`, `answer`, `decision`, `staff_request`, `staff_approved`,
+`join`, `milestone_ready`. Full texts live in `briefs/` and `reports/`; the event points at them.
+This is the trail the owner's live view is drawn from, so it starts at the first brief.
+
+## Track mode (two levels of managers)
+
+Switch it on in the architect pass when **both** hold: there are 2 or more tracks that can run in
+parallel, and the run will outlast one working session (about a day, or more than ~12 stages).
+Otherwise `staffing: single` and everything above applies unchanged.
+
+| Role | Does | Never does |
+|---|---|---|
+| Orchestrator (this session) | Architect pass; owns `orchestration.md` global parts, `staffing.yaml` approvals, contracts, standing orders; starts every manager; runs each milestone's test plan; the **only** one who talks to the owner | build; micro-manage a track |
+| Track manager (profile `manager`, default Opus 5.5 medium) | Runs one track per its **charter** (`track-mode/CHARTER.md`, filled per manager): dispatches stages through the launcher as soon as their inputs are gated (or provisional, per the charter), verifies each stage, runs the gate, clarifies and tightens criteria, requests sub-managers, escalates | build; talk to the owner; loosen a criterion; start a manager |
+
+- **Coordination folder** `_runs/<run>/_coord/` — one writer per file:
+  `orchestration.md` (orchestrator; each manager edits only its own track's section),
+  `staffing.yaml` (managers add `requested` rows; only the orchestrator sets `approved`/`active`/
+  `retired` and starts managers; cap 4 live, 3 levels deep), `profile.yaml`, `standing-orders.md`,
+  `contracts/` (orchestrator), `tracks/<id>.md` (that manager's status, in-flight jobs, evidence),
+  `shared/<actor>.md` (facts other tracks need, append-only), `questions.md`, `events/`.
+- **Worker launcher** — every builder, reviewer and tester runs through it, never directly. See
+  `track-mode/LAUNCHER.md`: one `opencode serve` shared by the run, a pool of slots, and the
+  `brief`/`handback`/`hang`/`quota` events written for you. The orchestrator runs
+  `launcher.py --coord _runs/<run>/_coord start` before the first brief and `stop` at the end; each
+  check-in runs `health` and restarts the pool when it says `DOWN`.
+- **Live view** — the build tracker (`dashboard/tracker.html`) drawn from the run's files by
+  `track-mode/live.py` (needs PyYAML). The architect pass writes `_coord/plan.yaml` (milestones with
+  `tryIt`; stages with `milestone`, `title`, `needs`, `builder`, `track`); the rest comes from the
+  events, the launcher, `staffing.yaml`, `tracks/` and `questions.md`. At a glance: now / waiting
+  on, a needs-attention box (open questions, stuck stages, staff requests; hidden when empty), the
+  team line, milestones, the dependency map, and per stage its manager, worker, live job time and
+  provisional tag; a Map / Timeline switch (timeline: one bar per stage, grouped by manager,
+  coloured by phase, with stuck and question marks); and "Managers and their agents": the
+  orchestrator on top with what waits on it, then each manager with its stages, the agents working
+  for it now and its open asks. On click: iterations, log and every hand-off of a stage; the staffing tree,
+  slots and track files. The page never changes: all data is one `run.json` beside it, which the page re-reads every
+  10 s and anyone may edit. `live.py build --coord <dir>` writes it; `live.py serve --coord <dir>`
+  serves the page locally. For the owner's phone, publish `dashboard/tracker.html` once with
+  `files: {"run.json": <built file>}`, then republish with the new `run.json` when a stage changes
+  state or finishes and when a manager posts an update (each check-in does it too). Events may carry `state`, `verdict`, `provisional_on` or `qid` to make
+  stage states exact; fix rounds go through the launcher with `--fix`.
+- **Two channels.** Updates and facts go to files (`tracks/<id>.md`, `shared/`, events); the
+  orchestrator reads them at every check-in. A manager **ends its turn only for a question that
+  blocks**: it appends it to `questions.md`, returns with its id, and is resumed with the answer.
+- **Restart.** The orchestrator schedules a check-in (CronCreate, every 30–60 min) when the run
+  starts and deletes it at the end. Each check-in reads `staffing.yaml` and the track files,
+  restarts any dead or silent manager from its track file with a resume brief, and sends the owner
+  the hourly update (unless the profile says otherwise). A fresh orchestrator rebuilds the run from
+  `_coord/`.
 
 ## Dashboard
 
@@ -188,6 +282,8 @@ not write "observe the heading render" when no heading exists.
 - A blocked stage stops that stage, not the run. Finish everything unblocked, then say exactly
   what is left and why.
 - Cap heavy agents at 2 concurrently on Windows — `0xC0000142` is the machine, not the owner.
+  Opencode jobs go through the launcher's single `opencode serve` (an attached run is one process),
+  never as parallel standalone `opencode run`s — those lock its database.
 
 ## Related skills — call them, do not reimplement
 

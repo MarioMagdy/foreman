@@ -1,0 +1,28 @@
+# Default profile: approved once by the owner, copied into each run as _coord/profile.yaml.
+# Fallbacks listed here are PRE-APPROVED: a dead, hung or rate-limited worker is replaced along its
+# chain without asking the owner again. Fallbacks are for failures, never to skip a queue.
+# Re-check every model name live before a run (`opencode models`, the Agent tool's model list).
+
+orchestrator: { model: opus-5.5, note: "the owner's session" }
+advisor:      { model: fable-5.1 }
+manager:      { model: opus-5.5, effort: medium, fallback: [ { model: opus-5.5, effort: high } ] }
+
+builders:
+  step-5:   { model: opencode/step-5-preview-free,      fallback: [ opencode-go/deepseek-v4.1-flash, sonnet-5.5 ] }
+  deepseek: { model: opencode-go/deepseek-v4.1-flash,   fallback: [ sonnet-5.5 ] }
+reviewer:   { model: opencode-go/mimo-v2.6-pro,          fallback: [ sonnet-5.5 ] }
+
+workers:
+  opencode_slots: 3        # through the launcher's single `opencode serve`; tested up to 5
+  heavy_agents_max: 2      # non-opencode heavy local agents at once (Windows)
+
+managers:
+  live_max: 4
+  depth_max: 3             # orchestrator, manager, sub-manager
+
+owner_updates:
+  every: 1h                # plus at once: milestone ready, a decision outside standing orders, a plan change
+  live_view: on stage change and on manager update
+
+budget:
+  manager_spend_cap_per_run: null   # set per run; warn the owner at 80%, stop starting managers at 100%
