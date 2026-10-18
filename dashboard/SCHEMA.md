@@ -172,6 +172,16 @@ object for track mode: `attention`, `staffing`, `jobs`, `pool`, `handoffs` (per 
 `track-mode/live.py build` writes it from a run's `_coord/` folder. It is plain JSON and may be edited
 by hand; nothing in the HTML changes per project.
 
+**Questions.** Each open question is one `attention` entry per `qid`: `from` (who raised it), `to` (who
+holds it now), `text` (the question as first asked), `chain` (every hop: `{from, to, at, text}`), and,
+when given, `options` and `recommended`. A question passed on (a manager asks, the orchestrator cannot
+decide and asks the owner) is a second `question` event with the same `qid`. Questions held by
+`owner` show their options as buttons plus a free-text box. **Send answers to Claude** posts all picks as
+one comment and sends it to the Claude session watching the artifact. If no session is watching, it
+posts a plain comment, which the next check-in reads. If sending isn't possible from this view
+(opened locally, or the viewer is not an editor), it copies the text to paste into the chat. Publish
+with `capabilities: {comments: {}}` so the send works.
+
 ## Testing without the runtime
 
 Opened outside claude.ai (or with no database), the page shows a "no database" state with a **Show sample data**

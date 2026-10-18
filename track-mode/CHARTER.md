@@ -57,7 +57,8 @@ files other tracks own: `<paths>`.
   another track needs → append to `shared/manager-<id>.md` *and* log an event `ref: shared`.
   The orchestrator reads these at every check-in.
 - **Blocking (only when you cannot proceed correctly):** append the question to `questions.md`
-  (`id`, from, the decision needed, your recommendation, what waits on it), log `question`, then
+  (`id`, from, the decision needed, your recommendation, what waits on it), log `question` with
+  `qid`, `options` (2-4 short answers) and `recommended`, then
   **end your turn** with `QUESTION <id>`. Before ending, dispatch everything that doesn't depend
   on the answer, so it keeps running while you wait. You will be resumed with the answer.
 

@@ -230,6 +230,11 @@ dialog::backdrop { background: var(--scrim); }
 .tl .hit { fill: transparent; }
 .tl .tick { stroke: var(--line); }
 .tl .now { stroke: var(--accent); stroke-dasharray: 3 3; }
+.nowlist { display: grid; gap: 4px; font-size: .88rem; }
+.nowlist .nr { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--line); }
+.nowlist .nr:first-child { border-top: 0; }
+.nowlist .k { font-weight: 600; min-width: 5.5rem; }
+.nowlist .over { color: var(--st-blocked-fg); font-weight: 600; }
 .mgrs { display: grid; gap: 10px; }
 .mgr { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; min-width: 0; }
 .mgr.sub { margin-left: 22px; border-left: 3px solid var(--accent-soft); }
@@ -247,8 +252,20 @@ dialog::backdrop { background: var(--scrim); }
 .team { justify-self: start; font: inherit; font-size: .86rem; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 6px; padding: 2px 10px; cursor: pointer; }
 .attn { border-color: var(--st-blocked-fg); }
 .attn .a { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); font-size: .9rem; text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; cursor: pointer; }
-.attn .a:first-of-type { border-top: 0; }
-.attn .a:hover { background: var(--accent-soft); }
+#attn-list > :first-child { border-top: 0; }
+.attn button.a:hover { background: var(--accent-soft); }
+.attn div.a { cursor: default; }
+@media (max-width: 560px) { .attn div.a { grid-template-columns: minmax(0, 1fr); } }
+.attn .lnk { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.attn .route { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+.attn .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.attn .opt { font: inherit; font-size: .84rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; text-align: left; }
+.attn .opt:hover { border-color: var(--accent); }
+.attn .opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.attn .opt .rec { font-size: .72rem; color: var(--muted); font-weight: 400; }
+.attn .other { font: inherit; font-size: .84rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; flex: 1 1 200px; min-width: 0; }
+.attn .send { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .86rem; }
+.attn .send textarea { flex: 1 1 100%; font: .78rem/1.5 var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .attn .what-a { font-family: var(--font-mono); font-size: .8rem; font-weight: 500; }
 .attn .a.blocked .what-a { color: var(--st-blocked-fg); } .attn .a.question .what-a, .attn .a.staffing .what-a { color: var(--v-mid); }
 .attn .txt { overflow-wrap: anywhere; min-width: 0; }
@@ -278,6 +295,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     <div class="now">
       <div><b>Now:</b> <span id="focus">Loading the build state…</span></div>
       <div><b>Waiting on:</b> <span id="waiting">—</span></div>
+      <div class="muted" id="settings" hidden></div>
       <div class="muted" id="updated"></div>
       <button class="team" id="team" data-act="team" hidden></button>
       <span class="source" id="source" hidden></span>
@@ -287,6 +305,12 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   <section class="panel attn" id="attn" aria-labelledby="a-title" hidden>
     <div class="panel-head"><h2 id="a-title">Needs attention</h2><span class="muted" style="font-size:.8rem">Click a line for the stage and its hand-offs.</span></div>
     <div id="attn-list"></div>
+    <div class="send" id="attn-send" hidden><span id="send-n" class="muted"></span><button class="btn primary" data-act="send-answers" id="send-btn">Send answers to Claude</button><span id="send-msg" role="status"></span><textarea id="send-copy" rows="5" readonly hidden aria-label="Your answers, to paste into the chat"></textarea></div>
+  </section>
+
+  <section class="panel" id="now" aria-labelledby="n-title" hidden>
+    <div class="panel-head"><h2 id="n-title">Running now</h2><span class="muted" style="font-size:.8rem" id="now-asof"></span></div>
+    <div class="nowlist" id="now-list"></div>
   </section>
 
   <nav class="strip" id="strip" aria-label="Milestones"></nav>
@@ -420,6 +444,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       $("focus").textContent = meta.focus || "—";
       $("waiting").textContent = meta.waitingOn || "nothing";
       $("updated").textContent = meta.updated ? "Last update " + fmtTime(meta.updated) : "";
+      $("settings").hidden = !meta.settings; $("settings").textContent = meta.settings ? "Settings: " + meta.settings : "";
     } else if (mode === "live") {
       $("focus").textContent = "—"; $("waiting").textContent = "nothing";
     }
@@ -572,9 +597,31 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   }
 
   // ---- track-mode run: attention, team, hand-offs ----------------------------
+  // Running now: managers (awake/asleep), launcher jobs (running/queued, minutes vs expected), the worker pool.
+  function renderNow(n) {
+    if (!n) return;
+    $("now").hidden = false;
+    const t = (iso) => iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "";
+    $("now-asof").textContent = n.asOf ? "as of " + t(n.asOf) + " (your time)" : "";
+    const rows = [];
+    (n.managers || []).forEach(m => rows.push(`<div class="nr"><span class="k">Manager ${esc(m.id)}</span>` +
+      (m.state === "awake" ? `<span class="chip s-running">awake</span><span>pid ${esc(m.pid)}${m.since ? ", since " + esc(t(m.since)) : ""}</span>` : '<span class="chip s-planned">asleep</span>') +
+      `<span class="muted">${m.items ? m.items + " item" + (m.items > 1 ? "s" : "") + " waiting" : "nothing waiting"}</span></div>`));
+    (n.jobs || []).forEach(j => rows.push(`<div class="nr"><span class="k mono">${esc(j.stage)}</span>` +
+      `<span class="chip s-${j.status === "running" ? "running" : "briefed"}">${esc(j.status)}</span><span>${esc(j.role || "")}</span><span class="who">${esc(j.model)}</span>` +
+      `<span class="muted">${j.minutes == null ? "" : Math.round(j.minutes) + " min" + (j.expect ? " of ~" + Math.round(j.expect) : "")}${j.actor ? " · for manager " + esc(j.actor) : ""}</span>` +
+      (j.over ? '<span class="over">over expected time</span>' : "") + "</div>"));
+    if (!(n.jobs || []).length) rows.push('<div class="nr"><span class="k">Workers</span><span class="muted">no worker jobs running or queued</span></div>');
+    const p = n.pool || {};
+    // a run that dispatches workers directly (no launcher) has no pool: say so instead of a false "daemon down"
+    if (p.slots == null && !p.up) rows.push('<div class="nr"><span class="k">Launcher</span><span class="muted">not used: workers are started directly by the orchestrator</span></div>');
+    else rows.push(`<div class="nr"><span class="k">Launcher</span><span class="chip s-${p.up ? "running" : "blocked"}">${p.up ? "daemon up" : "daemon down"}</span><span>${esc(p.used ?? 0)} of ${esc(p.slots ?? "?")} slots used</span></div>`);
+    $("now-list").innerHTML = rows.join("");
+  }
   function renderRun() {
-    $("team").hidden = $("attn").hidden = $("mgrs").hidden = $("seg").hidden = true;
+    $("team").hidden = $("attn").hidden = $("mgrs").hidden = $("seg").hidden = $("now").hidden = true;
     if (mode !== "run" || !run) return;
+    renderNow(run.now);
     $("seg").hidden = false;
     const mgrs = (run.staffing || []).filter(r => r.status !== "retired");
     const live = mgrs.filter(r => r.status === "active").length;
@@ -587,11 +634,77 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     const warn = (run.warnings || []).map(w => ({ type: "blocked", ref: "", text: w }));
     $("attn").hidden = !items.length && !warn.length;
     const label = { blocked: "stuck", question: "question", staffing: "staff request" };
-    $("attn-list").innerHTML = warn.concat(items).map(a => `<button class="a ${esc(a.type)}" ${a.ref && findStage(a.ref) ? `data-open-ref="${esc(a.ref)}"` : 'data-act="team"'}>
-      <span class="what-a">${esc(label[a.type] || a.type)} ${esc(a.qid || a.ref || "")}</span>
-      <span class="txt">${esc(a.text)}${a.from ? ` <span class="muted">· ${esc(a.from)} → ${esc(a.to || "orchestrator")}, ${esc(fmtTime(a.at))}</span>` : ""}</span></button>`).join("");
+    $("attn-list").innerHTML = warn.concat(items).map(a => a.type === "blocked" ? `<button class="a blocked" ${a.ref && findStage(a.ref) ? `data-open-ref="${esc(a.ref)}"` : 'data-act="team"'}>
+      <span class="what-a">stuck ${esc(a.ref || "")}</span><span class="txt">${esc(a.text)}</span></button>` : askRow(a, label)).join("");
+    renderSend();
     renderManagers(mgrs);
   }
+
+  // A question shows who raised it and every hop it took; one that now sits with the owner gets its options.
+  // Picks stay in the page until "Send answers to Claude" posts them as one comment sent to the watching session.
+  const picks = {}, sent = new Set();
+  const qidOf = (a) => String(a.qid || a.ref || "");
+  const who = (n) => n === "owner" ? "you" : n || "orchestrator";
+  const route = (a) => [a.from].concat((a.chain || [{ to: a.to }]).map(h => h.to)).map(who).join(" → ");
+  const forOwner = () => (run && run.attention || []).filter(a => a.type === "question" && a.to === "owner" && !sent.has(qidOf(a)));
+  const answerOf = (id) => { const p = picks[id] || {}; return (p.other || "").trim() || p.v || ""; };
+  function askRow(a, label) {
+    const id = qidOf(a), p = picks[id] || {}, mine = a.type === "question" && a.to === "owner";
+    const head = a.ref && findStage(a.ref) ? `<button class="lnk" data-open-ref="${esc(a.ref)}">${esc(label[a.type] || a.type)} ${esc(id)}</button>` : `${esc(label[a.type] || a.type)} ${esc(id)}`;
+    const hops = (a.chain || []).length > 1 ? `<details class="more"><summary>How it got here (${a.chain.length})</summary><ul class="hand">${a.chain.map(h =>
+      `<li><time>${esc(fmtTime(h.at))}</time><span><span class="rt">${esc(who(h.from))} → ${esc(who(h.to))}</span><br>${esc(h.text)}</span></li>`).join("")}</ul></details>` : "";
+    const opts = !mine ? "" : sent.has(id) ? '<div class="route">Sent to Claude. It clears here once the orchestrator logs your answer.</div>'
+      : `<div class="opts">${(a.options || []).map(o => `<button class="opt" data-act="pick" data-q="${esc(id)}" data-v="${esc(o)}" aria-pressed="${p.v === o}">${esc(o)}${o === a.recommended ? ' <span class="rec">recommended</span>' : ""}</button>`).join("")}
+        <input class="other" data-q="${esc(id)}" value="${esc(p.other || "")}" placeholder="${(a.options || []).length ? "or your own answer" : "your answer"}" aria-label="Your own answer to ${esc(id)}"></div>`;
+    const first = (a.chain && a.chain[0] || a);
+    return `<div class="a ${esc(a.type)}"><span class="what-a">${head}</span>
+      <div class="txt">${esc(a.text)}<div class="route">Raised by ${esc(route(a))} · ${esc(fmtTime(first.at))}</div>${hops}${opts}</div></div>`;
+  }
+  function renderSend() {
+    const qs = forOwner(), n = qs.filter(a => answerOf(qidOf(a))).length;
+    $("attn-send").hidden = !qs.length;
+    $("send-n").textContent = `${n} of ${qs.length} answered`;
+  }
+  async function sendAnswers(btn) {
+    const qs = forOwner().filter(a => answerOf(qidOf(a)));
+    const say = (t) => { $("send-msg").textContent = t; };
+    if (!qs.length) return say("Pick or type an answer first.");
+    const text = `Answers from the tracker (${(meta && meta.subtitle) || "this run"}):\n` + qs.map(a => `${qidOf(a)}: ${answerOf(qidOf(a))}`).join("\n");
+    btn.disabled = true;
+    let c = null, why = "";
+    try { c = window.claude && window.claude.use ? await window.claude.use("comments") : null; } catch (e) { c = null; }
+    try {
+      const can = c ? await c.canSendToClaude().catch(() => "off") : "off";
+      if (can === "available") {
+        await c.sendToClaude({ anchor: await c.anchorFor($("attn")), text });
+        qs.forEach(a => sent.add(qidOf(a)));
+        btn.disabled = false; renderRun();
+        return say("Sent. Claude replies in the comment thread.");
+      }
+      if (can === "no_session") {                 // nobody is watching right now: leave it where the next check-in reads it
+        await c.create({ anchor: await c.anchorFor($("attn")), text });
+        qs.forEach(a => sent.add(qidOf(a)));
+        btn.disabled = false; renderRun();
+        return say("No Claude session is watching right now, so this was saved as a comment. The orchestrator reads it at its next check-in.");
+      }
+      why = { writers_only: "only editors can send to Claude", off: "sending to Claude is off in this view" }[can] || "sending is not available here";
+    } catch (e) {
+      const code = e && e.code;
+      btn.disabled = false;
+      if (code === "consent_required") return say("Not sent: allow the page to comment when asked, then press again.");
+      why = code === "claude_unavailable" ? "no Claude session could take it" : `the send failed (${code || "error"})`;
+    }
+    const ta = $("send-copy"); ta.hidden = false; ta.value = text; ta.focus(); ta.select();
+    let copied = false; try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+    say(`Not sent from here: ${why}. ${copied ? "Copied" : "Selected"}; paste it into the chat.`);
+    btn.disabled = false;
+  }
+  document.addEventListener("input", (ev) => {
+    const t = ev.target;
+    if (!t.classList || !t.classList.contains("other")) return;
+    (picks[t.dataset.q] = picks[t.dataset.q] || {}).other = t.value;
+    renderSend();
+  });
 
   // The orchestrator manages managers; managers manage stages and the agents working on them.
   const askText = (a) => { const id = a.qid || a.ref || ""; return String(a.text || "").startsWith(id) ? a.text : `${id}: ${a.text}`; };
@@ -600,10 +713,11 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     $("mgrs").hidden = false;
     const ownerOf = (s) => String(s.manager || s.track || "");
     const asks = (run.attention || []).filter(a => a.type !== "blocked");
-    const orch = asks.filter(a => !a.to || a.to === "orchestrator");
+    const orch = asks.filter(a => !a.to || a.to === "orchestrator"), withYou = asks.filter(a => a.to === "owner");
     const top = mgrs.filter(r => String(r.parent ?? "top") === "top");
     let html = `<div class="mgr"><div class="h"><b>Orchestrator</b><span class="muted">the owner's session · manages ${top.map(r => "manager " + esc(r.id)).join(", ")}</span></div>
-      ${orch.length ? orch.map(a => `<div class="flag">Waiting on it, from ${esc(a.from)}: ${esc(askText(a))}</div>`).join("") : '<div class="muted" style="font-size:.86rem">Nothing waiting on it.</div>'}</div>`;
+      ${orch.length ? orch.map(a => `<div class="flag">Waiting on it, from ${esc(a.from)}: ${esc(askText(a))}</div>`).join("") : '<div class="muted" style="font-size:.86rem">Nothing waiting on it.</div>'}
+      ${withYou.length ? `<div class="flag">Waiting on you: ${withYou.map(a => esc(qidOf(a))).join(", ")} (answer them under Needs attention)</div>` : ""}</div>`;
     const card = (r, depth) => {
       const id = String(r.id);
       const own = stages.filter(s => ownerOf(s) === id);
@@ -618,7 +732,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
         ${own.length ? `<div class="stg">${own.map(s => `<button data-open-stage="${esc(s.sid)}">${esc(s.sid)} ${chip(s.status)}</button>`).join("")}</div>` : ""}
         <ul class="ag">${jobs.length ? jobs.map(j => `<li><span class="who">${esc(String(j.model).split("/").pop())}</span><span>${esc(j.role)} on <span class="mono">${esc(j.stage)}</span></span><span class="live">${j.status === "running" ? "running" : "queued"} ${ago(j.started || j.submitted)}</span></li>`).join("")
           : '<li class="muted">No agents working for it right now.</li>'}</ul>
-        ${mine.map(a => `<div class="flag">Asked the ${esc(a.to || "orchestrator")}: ${esc(askText(a))}</div>`).join("")}
+        ${mine.map(a => `<div class="flag">Asked, now with ${esc(who(a.to))} (${esc(route(a))}): ${esc(askText(a))}</div>`).join("")}
         ${stuck.map(s => `<div class="flag" style="color:var(--st-blocked-fg)">${esc(s.sid)} stuck: ${esc(s.why || "")}</div>`).join("")}
       </div>`;
       subs.forEach(x => card(x, depth + 1));
@@ -650,6 +764,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     if (cur) out.push(cur);          // still open: runs to the last event
     return { out, marks };
   }
+  const fit = (s, n) => { s = String(s || ""); n = Math.max(4, n); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
   function renderTimeline() {
     const box = $("timeline");
     if (mode !== "run" || !run) { box.innerHTML = ""; return; }
@@ -663,8 +778,10 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       .map(id => ({ id, list: started.filter(s => ownerOf(s) === id).sort((a, b) => ms(run.handoffs[a.sid][0].ts) - ms(run.handoffs[b.sid][0].ts)) }))
       .filter(g => g.list.length);
     const t0 = Math.min(...started.map(s => ms(run.handoffs[s.sid][0].ts))), t1 = ms(meta && meta.updated || Date.now());
-    const hours = Math.max(1, (t1 - t0) / 3.6e6), PPH = Math.max(10, Math.min(60, 880 / hours));
-    const LBL = 168, ROW = 26, GH = 26, TOP = 30, x = (t) => LBL + (ms(t) - t0) / 3.6e6 * PPH;
+    // a short run fills the width (was capped at 60 px/hour, so a 20-minute run drew 20 px wide)
+    const LBL = 168, avail = Math.max(360, (box.clientWidth || 880) - LBL - 30);
+    const hours = Math.max(0.5, (t1 - t0) / 3.6e6), PPH = Math.max(10, avail / hours);
+    const ROW = 26, GH = 26, TOP = 30, x = (t) => LBL + (ms(t) - t0) / 3.6e6 * PPH;
     const W = Math.ceil(LBL + hours * PPH + 24);
     let y = TOP, body = "";
     groups.forEach(g => {
@@ -673,7 +790,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       g.list.forEach(s => {
         const { out, marks } = phasesOf(s), mid = y + ROW / 2;
         body += `<g class="row" tabindex="0" role="button" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${ROW}" rx="4"/>
-          <text class="sid" x="14" y="${mid + 4}">${esc(s.sid)}</text><text x="56" y="${mid + 4}">${esc(String(s.title).slice(0, 15))}${String(s.title).length > 15 ? "…" : ""}</text>`;
+          <text x="14" y="${mid + 4}"><tspan class="sid">${esc(s.sid)}</tspan><tspan dx="6">${esc(fit(s.title, Math.floor((LBL - 22) / 6.6) - String(s.sid).length - 1))}</tspan><title>${esc(s.sid + " " + s.title)}</title></text>`;
         out.forEach(p => {
           const a = x(p.start), b = Math.max(a + 3, x(p.end || (s.status === "ready" ? p.start : new Date(t1).toISOString())));
           body += `<rect x="${a}" y="${mid - 7}" width="${b - a}" height="14" rx="3" style="fill:${PHASE[p.kind][1]};stroke:var(--line)${s.provisional_on && s.status !== "ready" ? ";stroke-dasharray:4 2" : ""}"><title>${esc(s.sid + " " + PHASE[p.kind][0] + ", " + fmtTime(p.start) + (p.end ? " to " + fmtTime(p.end) : ", still open"))}</title></rect>`;
@@ -686,11 +803,20 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
         body += `</g>`; y += ROW;
       });
     });
-    let axis = "";
-    for (let d = new Date(t0); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
-      const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), dx = LBL + Math.max(0, (day - t0) / 3.6e6 * PPH);
-      axis += `<line class="tick" x1="${dx}" x2="${dx}" y1="16" y2="${y}"/><text x="${dx + 4}" y="12">${esc(new Date(Math.max(day, t0)).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }))}</text>`;
-    }
+    // ticks: the smallest step that leaves >= 70 px between labels; a day name only at the start and at midnight
+    let axis = "", lastX = -1e9;
+    const STEPS = [5, 10, 15, 30, 60, 120, 180, 360, 720, 1440].map(m => m * 6e4);
+    const step = STEPS.find(s => s / 3.6e6 * PPH >= 70) || 1440 * 6e4;
+    const dayName = (t) => new Date(t).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+    const hhmm = (t) => new Date(t).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    const first = Math.ceil(t0 / step) * step, ticks = [t0];
+    for (let t = first; t <= t1; t += step) if (t > t0) ticks.push(t);
+    ticks.forEach((t, i) => {
+      const dx = LBL + (t - t0) / 3.6e6 * PPH, midnight = new Date(t).getHours() === 0 && new Date(t).getMinutes() === 0;
+      const label = i === 0 ? `${dayName(t)} ${hhmm(t)}` : midnight ? dayName(t) : (step >= 864e5 ? dayName(t) : hhmm(t));
+      axis += `<line class="tick" x1="${dx}" x2="${dx}" y1="16" y2="${y}"/>`;
+      if (dx >= lastX + 10) { axis += `<text x="${dx + 4}" y="12">${esc(label)}</text>`; lastX = dx + 4 + 6.6 * label.length; }
+    });
     axis += `<line class="now" x1="${x(new Date(t1).toISOString())}" x2="${x(new Date(t1).toISOString())}" y1="16" y2="${y}"/>`;
     const legend = Object.values(PHASE).map(([n, c]) => `<span class="chip" style="background:${c};color:var(--ink)">${esc(n)}</span>`).join("") +
       ' <span class="note">● stuck (hang, quota, failed) &nbsp; ● question &nbsp; ✓ passed its gate &nbsp; dashed = provisional &nbsp; dotted line = last event</span>';
@@ -974,6 +1100,15 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     if (act === "close") return sheet.close();
     if (act === "team") return $("mgrs").scrollIntoView({ behavior: "smooth", block: "start" });
     if (act === "pane") { showPane(t.dataset.pane); return; }
+    if (act === "pick") {
+      const p = picks[t.dataset.q] = picks[t.dataset.q] || {};
+      p.v = p.v === t.dataset.v ? "" : t.dataset.v; p.other = "";
+      const box = t.parentElement;
+      box.querySelectorAll(".opt").forEach(b => b.setAttribute("aria-pressed", String(b === t && !!p.v)));
+      box.querySelector(".other").value = "";
+      return renderSend();
+    }
+    if (act === "send-answers") return sendAnswers(t);
     if (act === "demo") return loadDemo();
     if (act === "add-stage") return stageForm(t.dataset.ms, t.dataset.after || null, t.dataset.end === "1");
     if (act === "add-ms") return msForm(t.dataset.after || null);

@@ -37,6 +37,20 @@ branching:
     milestones: owner-explicit-only
                                    # NOTHING merges on the foreman's judgment. Ready != merged.
 
+settings:                          # run settings; the `delegation` skill applies them to every worker. Copy this block
+                                   # into _coord/plan.yaml `settings:` so the dashboard header shows it.
+  stage_gate: full-suite           # full-suite (worker runs the whole suite, fixes its own failures) | targeted | none
+  full_suite_slots: 1              # workers that may run a full suite at once on one machine (lock in _coord/locks/)
+  review: per-stage                # per-stage | per-milestone | none; who reviews is in `reviewers:`
+  human_review: per-milestone      # per-milestone | per-stage | end-only
+  verification: suite-output + targeted   # what the foreman re-runs per stage; full suite once per milestone
+                                   # integration, on the FIRST merge, not the last
+  expected_minutes: {}             # per job, from your own past runs per model and task type; 1.5x = flag at the
+                                   # check-in and a post-mortem question, NOT a kill
+  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md or ACTIVITY.log; or 3x expected
+  mailbox_interval_min: 2          # 1-5; agy's idle heartbeat (each one is a model call)
+  usage_stop: { dispatch: baseline+15, all: baseline+25 }   # weekly usage points; detached watchdog from the start
+
 gates:                             # who checks a unit before it is called ready
   trivial: self-review             # foreman reads the diff and runs the tests
   small:   self-review
@@ -55,6 +69,11 @@ workers:                           # GENERIC. The owner's own routing is filled 
   advisor:   <model>               # deepest available thinker; ask BEFORE committing to an approach
   judging:   <model>               # deep reviewer for gates; council-judge panel for `large`
   claude_ok: true                  # false when Claude quota is short -> other harnesses only
+  route_by_shape:                  # 2026-10-16 post-mortem; adjust per job
+    read_only_audit: <fast reader, e.g. a Gemini Flash via agy>
+    fix_with_rulings: <fast fixer, e.g. DeepSeek via opencode>   # also continuations and wording
+    greenfield_feature: <builder>, with the tail to the fast fixer; backend and front end are separate jobs
+    money_or_security: always a deep review with measured evidence
   prohibited: []
   # Where a row lists alternatives (`a | b`), pick per availability and per task, and SAY which
   # you picked and why. Never silently drop a tier. If the judge errors, fall back to the next
@@ -82,3 +101,6 @@ environment:                       # fill in BEFORE building; these are the ones
   writes_reach_production: <yes/no — if yes, fix it first>
   paid_calls: <which actions cost money, and how much per unit>
   forbidden_paths: []              # trees no agent may touch
+  toolchain: <pinned Python (.python-version), node version; checked before the first build>
+  deployment_shape: <workers, replicas, proxies>   # a fact from the architect pass; read it before believing an audit's severity
+  worktrees: delegation/prepare_worktree.py per job (venv, deps, test data, hooks, quick test)

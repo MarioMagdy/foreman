@@ -140,6 +140,8 @@ def main():
         until(lambda: job(coord, h)["status"] == "hung")
         until(lambda: job(coord, q)["status"] == "quota")
         until(lambda: job(coord, lg)["status"] == "running")
+        assert L(coord, "soft", lg).startswith("soft stop queued")  # delegation soft stop lands in the job's mailbox
+        assert "SOFT STOP" in open(os.path.join(job(coord, lg)["workdir"], "_scratch", "MAILBOX.md"), encoding="utf-8").read()
         L(coord, "cancel", lg)
         until(lambda: job(coord, lg)["status"] == "cancelled")
         for sid in (job(coord, h)["session"], job(coord, q)["session"]):

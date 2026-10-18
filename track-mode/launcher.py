@@ -6,6 +6,7 @@ Contract: track-mode/LAUNCHER.md. Stdlib only, Windows-first.
     python launcher.py --coord D submit --stage M2a --role builder --model opencode/step-5-preview-free \
                                         --brief briefs/M2a-a.md --workdir <worktree> --actor A [--expect 15] [--critical]
     python launcher.py --coord D status|wait|cancel <job>
+    python launcher.py --coord D soft <job> [--why "..."]      # soft stop through the job's _scratch/MAILBOX.md
     python launcher.py --coord D jobs [--actor A]
     python launcher.py --coord D health
     python launcher.py --coord D stop
@@ -33,6 +34,8 @@ QUOTA = re.compile(r"usage limit", re.I)
 STATUS = re.compile(r"^\s*STATUS:\s*(DONE|UNSURE|TOO_HARD|BLOCKED)\b.*$", re.M)
 MSG = "Your brief is the attached file. Follow it exactly, and end with the STATUS block it asks for."
 FINAL = ("done", "failed", "hung", "quota", "cancelled")
+SOFT_STOP = ("SOFT STOP: finish the step you are on (do not start a new one), commit it, write _scratch/HANDOFF.md "
+             "(what is done, what is left, how to continue, test status), then end with your STATUS block.")  # = delegation/mailbox.py
 
 
 def now():
@@ -112,7 +115,9 @@ class Daemon:
 
     # -- plumbing
     def env(self):
-        e = dict(os.environ, OPENCODE_SERVER_PASSWORD=self.pw)
+        # one skill folder for workers: without this opencode loads ~/.claude/skills AND ~/.agents/skills (duplicates,
+        # and the owner's orchestration skills); see delegation/skills.json
+        e = dict(os.environ, OPENCODE_SERVER_PASSWORD=self.pw, OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1")
         if self.db:
             e["OPENCODE_DB"] = self.db
         return e
@@ -294,6 +299,11 @@ class Daemon:
                 self.collect(job, rc)
                 continue
             last = job["started_epoch"]
+            for name in ("PROGRESS.md", "ACTIVITY.log"):  # delegation progress files: model and hook heartbeats
+                try:
+                    last = max(last, os.path.getmtime(os.path.join(job["workdir"], "_scratch", name)))
+                except OSError:
+                    pass
             if job.get("session"):
                 try:
                     last = max(last, self.http("GET", f"/session/{job['session']}")["time"]["updated"] / 1000)
@@ -366,6 +376,9 @@ def cli():
     s.add_argument("--fix", action="store_true", help="a fix round (logged as fix_brief)")
     for name in ("status", "wait", "cancel"):
         sub.add_parser(name).add_argument("job")
+    s = sub.add_parser("soft")
+    s.add_argument("job")
+    s.add_argument("--why", default="")
     sub.add_parser("jobs").add_argument("--actor")
     sub.add_parser("health")
     sub.add_parser("stop")
@@ -428,6 +441,12 @@ def cli():
     if a.cmd == "cancel":
         open(c.p("cancel", a.job), "w").close()
         return print(f"cancel requested: {a.job}")
+    if a.cmd == "soft":  # delegation soft stop: the worker's mailbox hook delivers it at its next tool call
+        job = c.job(a.job) or sys.exit(f"no such job: {a.job}")
+        os.makedirs(os.path.join(job["workdir"], "_scratch"), exist_ok=True)
+        with open(os.path.join(job["workdir"], "_scratch", "MAILBOX.md"), "a", encoding="utf-8") as f:
+            f.write(f"[{now()}] {SOFT_STOP}{' Reason: ' + a.why if a.why else ''}\n")
+        return print(f"soft stop queued for {a.job}; `cancel` it after the grace period if no handback")
     if a.cmd == "jobs":
         for name in sorted(os.listdir(c.p("queue"))):
             job = c.job(name[:-5])

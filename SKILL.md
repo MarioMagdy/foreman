@@ -47,6 +47,9 @@ Filling it in:
   the CLI what it offers; do not write a version from memory.
 - Owner-named workers win verbatim. The `workers` block ships generic: fill it per job from the
   owner's words, then `LOCAL.md`, then what is actually installed.
+- **`settings`** (stage gate, review and human-review levels, verification depth, expected minutes, hard stop,
+  mailbox interval, usage stop lines) are the owner's to change: show them, then copy the block into
+  `_coord/plan.yaml` so the dashboard header shows it. The `delegation` skill applies them to every worker.
 - If the owner wants a dashboard, add its URL under `dashboard:` once published.
 - **Base branch: use `main` unless the owner said otherwise.** If the repo has a `dev` and the job
   is non-trivial, ask once.
@@ -71,27 +74,45 @@ required blocks:
    a dead model stalls its stage until the owner answers.
 5. **`events`** and **`restart`** — where every hand-off is logged, and how each actor is rebuilt
    from files if its session dies.
-6. **Questions up front, in one batch.** Every decision a stage could block on (access and keys,
+6. **Facts before findings.** Write the deployment shape (workers, replicas, proxies) into `environment`, and read
+   it before believing any audit's severity. Pin the toolchain once (`.python-version`, one prepared venv per
+   integration worktree) and check it before the first build.
+7. **Storage or comparison?** For any identity / normalization stage, ask whether the goal needs stored data to
+   change or only the comparison. Prefer the comparison: a stored-form change spread side effects through three
+   review rounds and was rebuilt (2026-10-17).
+8. **Accounts and quotas before the first job.** Check that every paid worker account has funds (one tiny call
+   each) and count jobs per quota-limited worker: route fix rounds to the fallback, keep the quota for new
+   stages. 2026-10-17: the opencode account hit 402 mid-day and Gemini's quota ran out after ~13 jobs.
+9. **Questions up front, in one batch.** Every decision a stage could block on (access and keys,
    authority, budget, which fallbacks may run, who decides what while the owner is away). Anything
    unanswered gets a default and a named decider in `standing_orders`.
 
 ## Stage design
+
+**Stage ids are `M<n>-S<k>`** ("M1 stage 1"): the milestone number, then the stage's number inside it, in build order. Never letters (`M1a`). A split stage is `M1-S3.1`; a head-to-head build is `M2-S2` with the builds named in the summary, never a new id. Verdicts, branches, briefs and PR titles all use this id, and reports show it with the stage title ("M1-S1 Runner").
 
 A stage is what one worker can finish and one gate can prove. Split by:
 
 - **Verifiability** — a stage ends where something can be *run*: a test, an endpoint, a screen.
 - **Blast radius** — files several stages must touch are a sequencing constraint, never parallel.
 - **Brains required** — spec-work / UI / bulk-dumb / thinking, each routed differently. Split
-  mixed stages so each half reaches the right worker.
+  mixed stages so each half reaches the right worker. Route by shape too (`workers.route_by_shape`): read-only
+  audits, rulings-based fixes and continuations, greenfield features and money/security stages each have a
+  natural worker. Backend and front end are separate jobs.
+- **Merge-friendly** — each stage writes its own changelog section and its own contract section (or a marked
+  block), so the final merge needs no hand edits (four of five merges conflicted in the same two files, 2026-10-16).
 
 **Ask the advisor before you commit to an approach, not after.** The run sheet names an `advisor`
 — the deepest available thinker — and it is worth a call at exactly two moments: before the stage
 decomposition is locked, and before a contract other stages will build on. After the code exists,
 an advisor only gets to agree with you.
 
-Write one brief per stage. **REQUIRED SUB-SKILL:** use `subagent-discipline` for the brief and for
-the post-run critique. The brief carries the plan excerpt, the exact files, the acceptance check
-the worker runs itself, the project's standing rules, and *do not commit unless told*. Every
+Write one brief per stage. **REQUIRED SUB-SKILLS:** `subagent-discipline` for the brief and for
+the post-run critique; `delegation` for everything around the worker (its prepared worktree, skills and
+permissions per role, progress file and mailbox, testing rule from `settings.stage_gate`, soft and hard stop,
+handback files). The brief carries the plan excerpt, the exact files, the acceptance check
+the worker runs itself, the project's standing rules, the `delegation` brief lines, and *commit to your stage
+branch after each numbered step; never push*. Reviewer briefs say *put your report in your final reply*. Every
 brief ends by requiring the worker's **status block** as the last thing it writes:
 
 ```text
@@ -116,7 +137,9 @@ STATUS: BLOCKED   waiting on: <stage or input>
 
 ## The stage loop
 
-1. **Dispatch** one worker with the brief, once every stage it needs has passed its gate. If a
+1. **Dispatch** one worker with the brief, once every stage it needs has passed its gate, into a worktree made by
+   `delegation/prepare_worktree.py` (never a cold one). While it runs, use `delegation` to look, talk and stop
+   (`launcher.py soft <job>` for launcher jobs); overrunning `expected_minutes` is a flag, not a kill. If a
    needed stage is built but not yet gated, and the interface used from it is frozen (contract or
    committed signature), the stage may start **provisional**: mark it so on the tracker and in its
    `brief` event, never call it ready before the stage it needs, and rebase it if that stage changes.
@@ -129,7 +152,11 @@ STATUS: BLOCKED   waiting on: <stage or input>
    Do not forward a reviewer's heavy proposals verbatim; reviewers over-build. The worker answers
    every finding in a table (`#n - accepted | accepted, simpler mechanism | rejected - reason`), and
    the re-review judges whether each hole is *closed*, not whether it matches the first proposal.
-5. **Ready**: open the stage PR, report it as ready, wait for the owner's word to merge.
+   **A ruling on a normalizer or identity rule is not READY until a diff on real data against the base branch
+   says what it costs** (rows lost, joins gained). Twice a ruling accepted as "intended" lost real data
+   (462 of 1,996 real phones, 2026-10-17).
+5. **Ready**: open the stage PR (body carries the tracker link in the project's CI format, e.g. a `CU-<id>` task link),
+   report it as ready, wait for the owner's word to merge.
 6. **Log** the worker (`subagent-discipline` scorecard), append the hand-off events (below), and
    update the dashboard (below).
 
@@ -176,22 +203,40 @@ Otherwise `staffing: single` and everything above applies unchanged.
   slots and track files. The page never changes: all data is one `run.json` beside it, which the page re-reads every
   10 s and anyone may edit. `live.py build --coord <dir>` writes it; `live.py serve --coord <dir>`
   serves the page locally. For the owner's phone, publish `dashboard/tracker.html` once with
-  `files: {"run.json": <built file>}`, then republish with the new `run.json` when a stage changes
-  state or finishes and when a manager posts an update (each check-in does it too). Events may carry `state`, `verdict`, `provisional_on` or `qid` to make
+  `files: {"run.json": <built file>}` and `capabilities: {comments: {}}`, then republish with the new `run.json` when a stage changes
+  state or finishes and when a manager posts an update (each check-in does it too).
+  **The owner answers on the page.** Every `question` event carries `qid`, and when it is for the owner,
+  `options` and `recommended`. A question you pass on keeps the manager's `qid`, so the page shows
+  who raised it and each hop it took. The owner's picks arrive as one comment sent to this session,
+  or at a check-in, read with `ArtifactComments`. Log one `answer` event per `qid` (actor
+  `owner`), reply in the thread, act on the answers, then republish. Events may carry `state`, `verdict`, `provisional_on` or `qid` to make
   stage states exact; fix rounds go through the launcher with `--fix`.
 - **Two channels.** Updates and facts go to files (`tracks/<id>.md`, `shared/`, events); the
   orchestrator reads them at every check-in. A manager **ends its turn only for a question that
   blocks**: it appends it to `questions.md`, returns with its id, and is resumed with the answer.
+- **Wake on handback, in any staffing.** Arm a Monitor on `events/launcher.jsonl` filtered to
+  `handback|hang|quota|failed` (it expires every 30 min: re-arm it) so a finished job is picked up at
+  once. In the 2026-10-16 run a 30-minute cron alone cost about 3 hours of jobs sitting finished.
 - **Restart.** The orchestrator schedules a check-in (CronCreate, every 30–60 min) when the run
-  starts and deletes it at the end. Each check-in reads `staffing.yaml` and the track files,
+  starts and deletes it at the end; it is the safety net behind the Monitor. Each check-in reads `staffing.yaml` and the track files,
   restarts any dead or silent manager from its track file with a resume brief, and sends the owner
   the hourly update (unless the profile says otherwise). A fresh orchestrator rebuilds the run from
   `_coord/`.
 
+**Outside Claude Code** (codex, opencode, agy as orchestrator). Artifacts, `ArtifactComments`, `ArtifactData`,
+Monitor, CronCreate and Agent-tool managers are Claude Code only. Use these instead:
+- **Page:** `live.py serve --coord <dir>` is the page; give the owner its local URL.
+- **Owner's answers:** they answer in the chat or by editing `questions.md`. Log the `answer` events the same way.
+- **Waking up:** poll `events/launcher.jsonl` and `mailbox.py hang` between your own steps. No outside wake-up exists, so
+  tell the owner the run only moves while a session is open.
+- **Managers:** start them as separate harness runs through the launcher or the `*-as-tool` skills, not as subagents.
+
+See `delegation/references/capabilities.md`. `launcher.py` is Windows-only (ctypes, taskkill).
+
 ## Dashboard
 
-When the owner asks for a dashboard, tracker or progress page, use the template in `dashboard/`:
-publish `dashboard/tracker.html` as an Artifact with `capabilities: {db: {}, user: {scopes: ["profile"]}}`,
+When the owner asks for a dashboard, tracker or progress page, use the template in `dashboard/`.
+(This section is Claude Code only. Elsewhere, use `live.py serve`, described above.) Publish `dashboard/tracker.html` as an Artifact with `capabilities: {db: {}, user: {scopes: ["profile"]}}`,
 then seed it from the run sheet with one ArtifactData batch. `dashboard/SCHEMA.md` is the data
 contract and has every write; `dashboard/seed-example.json` is a working seed. Record the URL in the
 run sheet (`dashboard.url`). Do not hand-build a new page per project.
@@ -222,6 +267,14 @@ A milestone is done when the owner can sit down and try it — not when its test
 **Run the whole plan yourself first.** A test plan whose first command fails is the most common way
 this skill fails. If a milestone has nothing to show on real data, say so and seed the data — do
 not write "observe the heading render" when no heading exists.
+
+**Two gates every multi-stage run needs before "ready", because stage gates miss what crosses stages:**
+- **Milestone review on the top of the stack** by the strongest reviewer the run sheet names. On one run
+  (2026-10-17) it found 10 holes that eight green stage gates and CI had all passed.
+- **End-to-end on real saved data across every repo the run touched**, no live traffic: the real chain
+  (export → next tool → import → the client file), plus the app started on a throw-away copy and clicked.
+  Write it as `TEST_PLAN_E2E.md`. On the same run (2026-10-18) it found 8 seams no single-repo plan could see (a hint
+  printing the old unguarded command, contacts lost to invisible characters, a match file nothing read).
 
 ## Before the owner sits down
 
@@ -266,7 +319,9 @@ not write "observe the heading render" when no heading exists.
 
 ## Standing rules
 
-- **Nothing is committed, pushed, or merged unless the owner asked.**
+- **Nothing is committed, pushed, or merged unless the owner asked.** The one standing exception (owner decision
+  2026-10-16, deployed 2026-10-17 with the `delegation` skill): a worker commits to its own stage branch after
+  each step, locally.
 - **No production write without the owner's explicit say-so, every time.** There is no standing
   permission and "it was only additive" is not an exemption. **Starting a service is a write** when
   its config resolves to production — schema migrations and startup reconcilers fire on the first
@@ -281,13 +336,26 @@ not write "observe the heading render" when no heading exists.
 - Additive schema changes only; never drop or reset a table to make a build pass.
 - A blocked stage stops that stage, not the run. Finish everything unblocked, then say exactly
   what is left and why.
+- **Bulk git cleanup snapshots its target list once, before acting, and never runs while builds start**: a lazy
+  per-repo listing removed 3 fresh build worktrees (2026-10-17).
+- **Long verification runs in the foreground in chunks under 10 minutes**, or as a launcher job. Background test
+  runs and wrapper processes were reaped under memory pressure while the session idled; watch worker PIDs, not
+  wrappers. Agent-tool subagents notify on their own and survived every reap.
+- **Standing rules a brief pastes in must not name a model**: a commit-trailer line naming the previous builder
+  made the next one sign as the wrong model. Say "the model that did the work".
 - Cap heavy agents at 2 concurrently on Windows — `0xC0000142` is the machine, not the owner.
   Opencode jobs go through the launcher's single `opencode serve` (an attached run is one process),
   never as parallel standalone `opencode run`s — those lock its database.
 
+## After the run: post-mortem
+
+Every run ends with `postmortems/<yyyy-mm-dd>-<slug>.md` in the skill's PROTOTYPE folder (path in
+`LOCAL.md`; never in the deployed copy): numbers (stages GO, jobs, fix rounds, first-pass review rate, time per stage, interventions, Claude usage via `track-mode/usage_split.py`), what went well, what went wrong with root cause and a proposed skill change, and how each agent behaved. Model it on `an earlier post-mortem`. Open problems from earlier post-mortems are read before the next run sheet.
+
 ## Related skills — call them, do not reimplement
 
-`subagent-discipline` (every dispatch) · `council-judge` (large gates) · `verified-pr` (PR
+`subagent-discipline` (every dispatch) · `delegation` (every worker's workspace, channels, stop and handback) ·
+`council-judge` (large gates) · `verified-pr` (PR
 mechanics) · the project's own
 test skill, which the tester **executes** rather than improvises around. If one is not installed,
 do its job by hand as this file describes (a written brief and critique, a reviewer subagent, a
