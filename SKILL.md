@@ -341,6 +341,11 @@ not write "observe the heading render" when no heading exists.
 - **Long verification runs in the foreground in chunks under 10 minutes**, or as a launcher job. Background test
   runs and wrapper processes were reaped under memory pressure while the session idled; watch worker PIDs, not
   wrappers. Agent-tool subagents notify on their own and survived every reap.
+- **A stage gate runs what CI runs.** Name the exact command CI uses (e.g. `pytest tests/`, not three subfolders),
+  and treat a green CI run on the pushed head as part of READY. Builders that ran only the folders they touched
+  missed 19 failures in top-level test files that CI caught (2026-10-18).
+- **Never cancel a running `DROP DATABASE`**: it can leave the database invalid. If it hangs on a checkpoint, use a new
+  database name instead.
 - **Standing rules a brief pastes in must not name a model**: a commit-trailer line naming the previous builder
   made the next one sign as the wrong model. Say "the model that did the work".
 - Cap heavy agents at 2 concurrently on Windows — `0xC0000142` is the machine, not the owner.
