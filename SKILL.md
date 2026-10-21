@@ -29,8 +29,21 @@ PLAN ──► MILESTONE 1 ──► MILESTONE 2 ──► MILESTONE 3     stack
 Stages are **real PRs**, stacked into their milestone branch, carrying their judge findings as
 comments so they stay readable after they merge. Milestones stack on each other.
 
-**Nothing merges until the owner says so — stages included.** A stage that passed its gate is
-*ready to merge*, not merged. Announce it and wait.
+**Stages merge into their milestone; the owner merges milestones** (the default, owner 2026-10-21). Push every
+stage branch and open its PR into the milestone branch. When a stage passes its gate (verified by the foreman,
+review findings on the PR, fixes done), the foreman merges it into the milestone branch without asking. The
+milestone PR (into the previous milestone's branch, or the base for the first) is what the owner reviews.
+
+**Every milestone ends at the owner's gate** (`human_review: per-milestone`, the default). Once its test plan
+runs clean, the milestone waits for the owner, who tries the whole feature and then accepts it or asks for
+changes. Only the owner merges a milestone PR, after accepting it. The run sheet, `plan.yaml` and the tracker show this gate as
+the milestone's last step, so the owner sees what waits on them. A branch that holds several milestones is a
+place to try them together, never a way to merge them past their gates (2026-10-21: a morning summary offered that).
+
+**Milestones are working slices** (the default). Each milestone is something the owner can use end to end (its
+data, backend and screen together), so its test plan is a real use, not a list of API calls. Do not cut
+milestones by layer (service / engine / screens): on 2026-10-20 layer milestones tangled (M2 could not ship
+without M4's login fix, M6 lived inside M3's PR) and needed an integration branch to test at all.
 
 ## Publish the run sheet, then stop
 
@@ -39,6 +52,15 @@ and **wait for a yes before building anything.** The owner is choosing the arran
 and the gates; those are his calls, not yours. Copy `defaults.yaml` from this skill folder as the
 starting shape. Its `architecture`, `staffing`, `profile`, `events` and `restart` blocks are
 **required**: a run sheet with any of them blank is not ready to show.
+
+**The defaults are the answer unless the owner overrides them; confirm them before work starts.** At setup, put
+every default that shapes the run to the owner as a numbered question whose recommended answer is the skill default
+(milestones as working slices,
+stage merges (foreman, into the milestone, after the gate), milestone merges (owner only), human review (per
+milestone), base branch, stage gate, reviewers, live traffic and caps). No building until the owner has accepted
+them; "use the defaults" is a full answer, and it is not a mandatory interview. What the owner changes goes into
+the run sheet; everything else stays the default. An instruction such as "no merges tonight" is read against these
+defaults (it stops milestone merges); if it could also mean stage merges, ask.
 
 Filling it in:
 - **Arrangement scales with size.** Small job → milestones only. Medium/large → milestones+stages.
@@ -49,7 +71,7 @@ Filling it in:
   owner's words, then `LOCAL.md`, then what is actually installed.
 - **`settings`** (stage gate, review and human-review levels, verification depth, expected minutes, hard stop,
   mailbox interval, usage stop lines) are the owner's to change: show them, then copy the block into
-  `_coord/plan.yaml` so the dashboard header shows it. The `delegation` skill applies them to every worker.
+  `_coord/plan.yaml` so the dashboard header shows it (always including `human_review`). The `delegation` skill applies them to every worker.
 - If the owner wants a dashboard, add its URL under `dashboard:` once published.
 - **Base branch: use `main` unless the owner said otherwise.** If the repo has a `dev` and the job
   is non-trivial, ask once.
@@ -155,8 +177,10 @@ STATUS: BLOCKED   waiting on: <stage or input>
    **A ruling on a normalizer or identity rule is not READY until a diff on real data against the base branch
    says what it costs** (rows lost, joins gained). Twice a ruling accepted as "intended" lost real data
    (462 of 1,996 real phones, 2026-10-17).
-5. **Ready**: open the stage PR (body carries the tracker link in the project's CI format, e.g. a `CU-<id>` task link),
-   report it as ready, wait for the owner's word to merge.
+5. **Merge**: the stage PR (body carries the tracker link in the project's CI format, e.g. a `CU-<id>` task link)
+   merges into the milestone branch once its gate passes; the next stage builds on the merged milestone branch.
+   When the milestone's last stage is in, run the milestone review and the test plan on the milestone branch,
+   then open (or update) the milestone PR and send `milestone_ready` to the owner.
 6. **Log** the worker (`subagent-discipline` scorecard), append the hand-off events (below), and
    update the dashboard (below).
 
@@ -165,7 +189,10 @@ STATUS: BLOCKED   waiting on: <stage or input>
 `{"ts","actor","to","kind","ref","summary","artifact"}` with `kind` one of `brief`, `handback`,
 `status`, `clarification`, `criteria_change`, `review`, `verdict`, `fix_brief`, `verify`,
 `fallback`, `hang`, `quota`, `question`, `answer`, `decision`, `staff_request`, `staff_approved`,
-`join`, `milestone_ready`. Full texts live in `briefs/` and `reports/`; the event points at them.
+`join`, `milestone_ready`, `milestone_accepted`, `milestone_rejected`. Full texts live in `briefs/` and `reports/`;
+the event points at them. `milestone_ready` (to the owner, ref `M<n>`, once its test plan runs clean) puts the
+milestone on "Your review"; the owner's `milestone_accepted` (actor `owner`) unlocks its merges;
+`milestone_rejected` sends it back to its stages.
 This is the trail the owner's live view is drawn from, so it starts at the first brief.
 
 ## Track mode (two levels of managers)
@@ -291,7 +318,7 @@ not write "observe the heading render" when no heading exists.
 ## Red flags — stop
 
 - "It was a one-liner so I did it myself"
-- "'Get things done' means I can commit / push / merge"
+- "'Get things done' means I can merge a milestone or push to the base branch"
 - "The worker said the tests pass"
 - "I'm treating this as obviously-yes and doing it"
 - "This is reversible, so it's fine"
@@ -306,7 +333,7 @@ not write "observe the heading render" when no heading exists.
 
 | Excuse | Reality |
 |---|---|
-| "He said get it done — that authorizes pushing" | It authorizes *working*. Push and merge are separate words; he uses them when he means them. |
+| "He said get it done — that authorizes merging the milestone" | It authorizes *working*: stage branches, stage PRs, stage merges into the milestone. Milestone merges and anything on the base branch are the owner's words, used when meant. |
 | "Committing is reversible, losing the work isn't" | Commit locally then. Local commit preserves the work and asks nothing of him. |
 | "Asking would waste his night" | Being asked one question costs him a minute. Undoing an unwanted push costs an hour. |
 | "The .env obviously needs changing" | Change the process env, not his file. If the file must change, it is one uncommitted line and you say so. |
@@ -319,9 +346,10 @@ not write "observe the heading render" when no heading exists.
 
 ## Standing rules
 
-- **Nothing is committed, pushed, or merged unless the owner asked.** The one standing exception (owner decision
-  2026-10-16, deployed 2026-10-17 with the `delegation` skill): a worker commits to its own stage branch after
-  each step, locally.
+- **Nothing reaches the base branch (dev / main) or a milestone merge unless the owner asked.** Standing
+  permissions: a worker commits to its own stage branch after each step, locally (owner 2026-10-16); the foreman
+  pushes stage and milestone branches, opens their PRs, and merges a gated stage into its milestone branch
+  (owner 2026-10-21).
 - **No production write without the owner's explicit say-so, every time.** There is no standing
   permission and "it was only additive" is not an exemption. **Starting a service is a write** when
   its config resolves to production — schema migrations and startup reconcilers fire on the first

@@ -20,6 +20,8 @@
   --st-ready: #ddf1e2;     --st-ready-fg: #1e6a34;
   --st-merged: #2f7d46;    --st-merged-fg: #ffffff;
   --st-blocked: #f9dcdc;   --st-blocked-fg: #9b2226;
+  --st-owner_review: #ffe3a1; --st-owner_review-fg: #5c3d00;
+  --st-accepted: #c4e8cf; --st-accepted-fg: #14532d;
   --v-go: #1e6a34; --v-nogo: #9b2226; --v-mid: #74500f;
   --edge: #b7bfcc; --scrim: rgba(20, 26, 36, .45);
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -39,6 +41,8 @@
     --st-ready: #173323;     --st-ready-fg: #9bdcae;
     --st-merged: #3f9a5b;    --st-merged-fg: #0e1a12;
     --st-blocked: #3d1d1f;   --st-blocked-fg: #f3a5a8;
+    --st-owner_review: #4a3a10; --st-owner_review-fg: #ffd979;
+    --st-accepted: #1d4a2c; --st-accepted-fg: #b7ecc6;
     --v-go: #9bdcae; --v-nogo: #f3a5a8; --v-mid: #f0cf85;
     --edge: #465062; --scrim: rgba(0, 0, 0, .6);
     color-scheme: dark;
@@ -57,6 +61,8 @@
   --st-ready: #173323;     --st-ready-fg: #9bdcae;
   --st-merged: #3f9a5b;    --st-merged-fg: #0e1a12;
   --st-blocked: #3d1d1f;   --st-blocked-fg: #f3a5a8;
+  --st-owner_review: #4a3a10; --st-owner_review-fg: #ffd979;
+  --st-accepted: #1d4a2c; --st-accepted-fg: #b7ecc6;
   --v-go: #9bdcae; --v-nogo: #f3a5a8; --v-mid: #f0cf85;
   --edge: #465062; --scrim: rgba(0, 0, 0, .6);
   color-scheme: dark;
@@ -108,6 +114,8 @@ button { font: inherit; color: inherit; }
 .s-ready { background: var(--st-ready); color: var(--st-ready-fg); }
 .s-merged { background: var(--st-merged); color: var(--st-merged-fg); }
 .s-blocked { background: var(--st-blocked); color: var(--st-blocked-fg); }
+.s-owner_review { background: var(--st-owner_review); color: var(--st-owner_review-fg); font-weight: 600; }
+.s-accepted { background: var(--st-accepted); color: var(--st-accepted-fg); }
 .s-running::before { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .s-running::before { animation: none; } }
@@ -373,7 +381,8 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   "use strict";
   const STATUS = {
     planned: "Planned", briefed: "Brief ready", running: "Running", verifying: "Verifying",
-    review: "In review", fixing: "Fixing", ready: "Ready to merge", merged: "Merged", blocked: "Blocked"
+    review: "In review", fixing: "Fixing", ready: "Ready to merge", merged: "Merged", blocked: "Blocked",
+    owner_review: "Your review", accepted: "Accepted, may merge"   // milestone gate (track-mode/live.py)
   };
   const ITER_KINDS = new Set(["build", "review", "fix"]);
   const DONE = new Set(["merged"]);
@@ -422,8 +431,9 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     return m;
   }
   function msStatus(ms, list) {
-    if (!list.length) return ms.status || "planned";
+    if (!list.length) return ms.gate || ms.status || "planned";
     if (list.every(s => DONE.has(s.status))) return "merged";
+    if (ms.gate && list.every(s => s.status === "ready" || DONE.has(s.status))) return ms.gate;   // the owner's gate
     if (list.some(s => s.status === "blocked")) return "blocked";
     if (list.every(s => s.status === "ready" || DONE.has(s.status))) return "ready";
     if (list.some(s => s.status && s.status !== "planned")) return "running";

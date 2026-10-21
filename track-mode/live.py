@@ -304,9 +304,19 @@ def state(coord):
             log.append({"at": e["ts"], "ref": e.get("ref"), "kind": e["kind"], "actor": short(e.get("actor")),
                         "text": e.get("summary", "") + (f" → {short(e.get('to'))}" if e.get("to") else "")})
 
+    # the owner's gate per milestone: ready -> owner review; owner accepts -> its PRs may merge; rejected -> back to stages
+    gate_of = {"milestone_ready": "owner_review", "milestone_accepted": "accepted", "milestone_rejected": None}
+    for m in milestones:
+        for e in by_ref.get(m["id"], []):
+            if e["kind"] in gate_of:
+                m["gate"] = gate_of[e["kind"]]
+    in_review = {m["id"] for m in milestones if m.get("gate") == "owner_review"}
+
     running = [s for s in stages.values() if s.get("job", {}).get("status") == "running"]
-    ready = [s for s in stages.values() if s["status"] == "ready"]
+    ready = [s for s in stages.values() if s["status"] == "ready" and s["milestone"] not in in_review]
     waits = [f"{a['qid'] or a['ref']} ({a['from']} → {a['to'] or 'orchestrator'})" for a in attention if a["type"] != "blocked"]
+    if in_review:
+        waits.append(f"Owner: review {', '.join(m['id'] for m in milestones if m['id'] in in_review)} (test plans)")
     if ready:
         waits.append(f"Owner: merge decision on {', '.join(s['sid'] for s in ready)}")
     run_name = os.path.basename(os.path.dirname(coord))
