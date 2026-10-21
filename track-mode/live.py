@@ -314,12 +314,10 @@ def state(coord):
     in_review = {m["id"] for m in milestones if m.get("gate") == "owner_review" and m["id"] not in open_ms}
 
     running = [s for s in stages.values() if s.get("job", {}).get("status") == "running"]
-    ready = [s for s in stages.values() if s["status"] == "ready" and s["milestone"] not in in_review]
     waits = [f"{a['qid'] or a['ref']} ({a['from']} → {a['to'] or 'orchestrator'})" for a in attention if a["type"] != "blocked"]
     if in_review:
         waits.append(f"Owner: review {', '.join(m['id'] for m in milestones if m['id'] in in_review)} (test plans)")
-    if ready:
-        waits.append(f"Owner: merge decision on {', '.join(s['sid'] for s in ready)}")
+    # ready stages are not listed: a gated stage merges into its milestone without the owner (default 2026-10-21)
     run_name = os.path.basename(os.path.dirname(coord))
     included = [os.path.basename(os.path.dirname(os.path.abspath(str(i)))) for i in plan.get("include") or []]
     out = {
