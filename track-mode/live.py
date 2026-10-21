@@ -310,7 +310,8 @@ def state(coord):
         for e in by_ref.get(m["id"], []):
             if e["kind"] in gate_of:
                 m["gate"] = gate_of[e["kind"]]
-    in_review = {m["id"] for m in milestones if m.get("gate") == "owner_review"}
+    open_ms = {s["milestone"] for s in stages.values() if s["status"] not in ("ready", "merged")}
+    in_review = {m["id"] for m in milestones if m.get("gate") == "owner_review" and m["id"] not in open_ms}
 
     running = [s for s in stages.values() if s.get("job", {}).get("status") == "running"]
     ready = [s for s in stages.values() if s["status"] == "ready" and s["milestone"] not in in_review]
