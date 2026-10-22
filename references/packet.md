@@ -3,8 +3,14 @@
 Read this before a human gate: it is what the owner opens to accept or reject a milestone. Its job is that he
 does not have to read the code.
 
-One page per human gate, inside the run's tracker artifact (never a new artifact per gate). Until the page
-template exists, write it as `packet-<gate id>.md` in the run folder, in the same order:
+One page per human gate, inside the run's tracker artifact (never a new artifact per gate): publish
+`dashboard/packet.html` beside the tracker and write `packets/<gate id>.json` for each human gate; the gate's row
+on the tracker links to `packet.html#<gate id>`. With no hash the page shows a built-in sample, which is also the
+data shape: `gate`, `milestone`, `kind`, `title`, `adds`, `verdict` {recommendation accept|reject|look, ai_gate,
+look_at}, `done_when` [{item, status pass|partial|fail, evidence}], `key_metric` {name, unit, bar, better,
+attempts}, `bakeoff`, `suite` {now, previous}, `timeline` [{id, title, kind, start, end, rounds, wait}],
+`evidence` [{caption, device, done_when, pass, src}], `folded` {test_plan, reports, links, app, gaps, logs}. Leave
+out what the milestone doesn't have; its chart disappears. The page shows, in this order:
 
 1. **Verdict and brief**, 3 lines: what the milestone adds, the AI gate's recommendation, and the one thing the
    owner should look at himself.

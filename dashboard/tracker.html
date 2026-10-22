@@ -909,7 +909,9 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       ${s.why ? `<p class="why" style="color:var(--st-blocked-fg)">${esc(s.why)}</p>` : ""}
       <dl class="fields">
         ${s.manager ? `<dt>Manager</dt><dd>${esc(s.manager)}${s.track ? " · track " + esc(s.track) : ""}</dd>` : ""}
-        <dt>Worker</dt><dd>${esc(s.worker || "unassigned")}${s.job ? ` · <span class="live">${jobLine(s.job)}</span>` : ""}</dd>
+        ${s.kind === "gate" && !s.worker ? "" : `<dt>Worker</dt><dd>${esc(s.worker || "unassigned")}${s.job ? ` · <span class="live">${jobLine(s.job)}</span>` : ""}</dd>`}
+        ${s.kind === "gate" ? `<dt>Check</dt><dd>${esc(s.check || "—")}${s.bar ? ` · bar: ${esc(s.bar)}` : ""}</dd>` : ""}
+        ${s.gate === "human" ? `<dt>Review packet</dt><dd><a href="packet.html#${esc(s.sid)}">Open the packet for ${esc(s.sid)}</a></dd>` : ""}
         ${s.provisional_on ? `<dt>Provisional on</dt><dd>${esc(s.provisional_on)}: started before it passed its gate; never ready before it; rebased if it changes</dd>` : ""}
         <dt>Needs</dt><dd class="mono">${(s.depends || []).length ? s.depends.map(d => findStage(d) ? `<button class="refbtn" data-open-ref="${esc(d)}">${esc(d)}</button>` : esc(d)).join(" ") : "—"}</dd>
         ${pr ? `<dt>PR</dt><dd><a href="${esc(pr)}" target="_blank" rel="noopener">${esc(pr.replace(/^https?:\/\//, ""))}</a></dd>` : ""}
