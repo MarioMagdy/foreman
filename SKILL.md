@@ -58,9 +58,9 @@ it reaches the base only on his word. Read `references/explore.md` before planni
 
 `foreman init` (or "initialize") does the setup and nothing else: read the plan, do the architect pass (next
 section), write the run sheet (`defaults.yaml` filled in for this job, with the workers you propose),
-`_coord/plan.yaml`, `PLAN.md` + `M<n>_PLAN.md`, and the setup questions in one batch; publish them, and **wait for a
-yes before building anything.** Any other first ask to build a plan ("take this plan and build it") is `init` too: the
-owner's review is the default. He is choosing the arrangement, the workers and the gates; those are his calls, not
+`_coord/plan.yaml`, `PLAN.md` + `M<n>_PLAN.md`, and the setup questions in one batch; show them (on the tracker if he
+asked for one, else in chat), and **wait for a yes before building anything.** Any other first ask to build a plan
+("take this plan and build it") is `init` too: the owner's review is the default. He is choosing the arrangement, the workers and the gates; those are his calls, not
 yours. When he changes something ("opencode for M2's builds"), edit the run sheet and plan files, say what changed,
 and wait again. Log his yes as a `decision` event (actor `owner`, ref `run-sheet`); a restarted foreman that finds no
 such event waits. Copy `defaults.yaml` from this skill folder as the
@@ -76,7 +76,7 @@ them; "use the defaults" is a full answer, and it is not a mandatory interview. 
 the run sheet; everything else stays the default. An instruction such as "no merges tonight" is read against these
 defaults (it stops milestone merges); if it could also mean stage merges, ask.
 
-**`init and start`** (his words: "init and start", "initialize and go", "init, no review"): write and publish the same
+**`init and start`** (his words: "init and start", "initialize and go", "init, no review"): write and show the same
 files, then start without waiting. Every setup question takes its recommended answer, marked `assumed` in
 `questions.md` and listed in `standing_orders`; he can overturn any of them later, for stages not yet started. Log a
 `decision` event (actor `owner`, ref `run-sheet`, summary "init and start"). It skips only the wait for the run
@@ -176,7 +176,9 @@ STATUS: BLOCKED   waiting on: <stage or input>
   facts every brief depends on (verified, dated) and the standing rules to paste into every brief;
   then one section per stage that is a **copy-paste brief**: goal, exact files, steps, and numbered
   **success criteria** the worker runs itself and the foreman re-runs. Before dispatching, prepend
-  "what changed since the plan was written (verified <date>)" instead of editing history.
+  "what changed since the plan was written (verified <date>)" instead of editing history. They live in the run
+  folder beside `_coord/`, never next to the owner's plan: Windows file names ignore case, so a `PLAN.md` written
+  beside his `plan.md` replaces it.
 - **One run folder per milestone:** `_runs/<YYYY-MM-DD>-M<n>/{briefs,reports,evidence}`. Every
   brief, review brief and fix brief is a file in `briefs/`; every worker and reviewer writes its
   report to `reports/`. Never committed.
