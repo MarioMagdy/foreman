@@ -1,4 +1,4 @@
-# foreman run sheet — copy, fill in for the job, show the owner, WAIT for a yes.
+# foreman run sheet — copy, fill in for the job, show the owner, WAIT for a yes (unless he said "init and start").
 # Every value here is a default to be overridden, not a decision already made.
 
 plan: <path to the agreed plan>

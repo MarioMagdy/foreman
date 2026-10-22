@@ -25,7 +25,7 @@ stages:
 ```
 
 `kind` defaults to `build`. Gate ids are `M<n>-G<k>`. Old runs carry a one-line `tryIt` instead of `adds` and
-`done_when`; the tracker still shows it. `python evals/plan_check.py <plan.yaml>` checks this shape.
+`done_when`; the tracker still shows it. `python <the skill's folder>/evals/plan_check.py <plan.yaml>` checks this shape.
 
 ## Node kinds
 

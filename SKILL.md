@@ -1,6 +1,6 @@
 ---
 name: foreman
-description: Use when an agreed plan has to be executed by delegated agents and the owner will review it — building a plan's milestones, running a multi-stage build with subagents, "take this plan and build it", "run it overnight", "orchestrate this", or when the owner asks where the work is, to test it, or for a test plan. Also use before answering any question about a build the owner is about to review, and when the owner asks for a dashboard, tracker or progress page for a build.
+description: Use when an agreed plan has to be executed by delegated agents and the owner will review it — building a plan's milestones, running a multi-stage build with subagents, "take this plan and build it", "run it overnight", "orchestrate this", "foreman init" or "initialize" (with or without "and start"), or when the owner asks where the work is, to test it, or for a test plan. Also use before answering any question about a build the owner is about to review, and when the owner asks for a dashboard, tracker or progress page for a build.
 ---
 
 # Foreman — a plan becomes milestones, stages, PRs, and something the owner can test
@@ -54,11 +54,16 @@ uncertain work: trying options, iterating on what the owner finds, bake-offs, an
 (what was the polish sprint). It branches off the base, grows as he tests, nothing in the stack depends on it, and
 it reaches the base only on his word. Read `references/explore.md` before planning one.
 
-## Publish the run sheet, then stop
+## `foreman init`: write the plan and the run sheet, then stop
 
-Read the plan, do the architect pass (next section), emit `defaults.yaml` filled in for this job,
-and **wait for a yes before building anything.** The owner is choosing the arrangement, the workers
-and the gates; those are his calls, not yours. Copy `defaults.yaml` from this skill folder as the
+`foreman init` (or "initialize") does the setup and nothing else: read the plan, do the architect pass (next
+section), write the run sheet (`defaults.yaml` filled in for this job, with the workers you propose),
+`_coord/plan.yaml`, `PLAN.md` + `M<n>_PLAN.md`, and the setup questions in one batch; publish them, and **wait for a
+yes before building anything.** Any other first ask to build a plan ("take this plan and build it") is `init` too: the
+owner's review is the default. He is choosing the arrangement, the workers and the gates; those are his calls, not
+yours. When he changes something ("opencode for M2's builds"), edit the run sheet and plan files, say what changed,
+and wait again. Log his yes as a `decision` event (actor `owner`, ref `run-sheet`); a restarted foreman that finds no
+such event waits. Copy `defaults.yaml` from this skill folder as the
 starting shape. Its `architecture`, `staffing`, `profile`, `events`, `restart` and `plan_files` blocks are
 **required**: a run sheet with any of them blank, or whose plan files are not written yet, is not ready to show.
 
@@ -70,6 +75,14 @@ milestone), base branch, stage gate, reviewers, live traffic and caps). No build
 them; "use the defaults" is a full answer, and it is not a mandatory interview. What the owner changes goes into
 the run sheet; everything else stays the default. An instruction such as "no merges tonight" is read against these
 defaults (it stops milestone merges); if it could also mean stage merges, ask.
+
+**`init and start`** (his words: "init and start", "initialize and go", "init, no review"): write and publish the same
+files, then start without waiting. Every setup question takes its recommended answer, marked `assumed` in
+`questions.md` and listed in `standing_orders`; he can overturn any of them later, for stages not yet started. Log a
+`decision` event (actor `owner`, ref `run-sheet`, summary "init and start"). It skips only the wait for the run
+sheet: milestone gates, milestone merges, the base branch, live traffic and money beyond the run sheet's caps still
+wait for his word, and a question only he can answer (a key, an account) blocks only the stages that need it. If his
+words could mean either, ask.
 
 Filling it in:
 - **Arrangement scales with size.** Small job → milestones only. Medium/large → milestones+stages.
@@ -120,7 +133,7 @@ required blocks:
 10. **`plan.yaml`, in the shape `references/gates.md` gives (read it now).** Milestones with `adds` and
    `done_when`; build, spike and gate nodes; each planned milestone closed by an AI gate, then the human gate. An
    open choice in the plan (options listed, "evaluate", "try") becomes a spike and a gate, not a question with a
-   recommended answer. Check the file with `python evals/plan_check.py _coord/plan.yaml`.
+   recommended answer. Check the file with `python <this skill's folder>/evals/plan_check.py _coord/plan.yaml`.
 
 ## Stage design
 
@@ -350,7 +363,7 @@ not write "observe the heading render" when no heading exists.
 
 | Excuse | Reality |
 |---|---|
-| "He said get it done — that authorizes merging the milestone" | It authorizes *working*: stage branches, stage PRs, stage merges into the milestone. Milestone merges and anything on the base branch are the owner's words, used when meant. |
+| "He said get it done (or init and start) — that authorizes merging the milestone" | It authorizes *working*: stage branches, stage PRs, stage merges into the milestone. Milestone merges and anything on the base branch are the owner's words, used when meant. |
 | "Committing is reversible, losing the work isn't" | Commit locally then. Local commit preserves the work and asks nothing of him. |
 | "Asking would waste his night" | Being asked one question costs him a minute. Undoing an unwanted push costs an hour. |
 | "The .env obviously needs changing" | Change the process env, not his file. If the file must change, it is one uncommitted line and you say so. |
