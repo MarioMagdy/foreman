@@ -119,7 +119,8 @@ def load_coord(coord, seen=()):
                                                    "ended", "critical", "expect") if j.get(k) is not None})
     for m in plan.get("milestones") or []:
         if not any(x["id"] == str(m["id"]) for x in out["milestones"]):
-            out["milestones"].append({"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt")})
+            out["milestones"].append({"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt"),
+                                      "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when")})
     out["stages"] += plan.get("stages") or []
     return out
 

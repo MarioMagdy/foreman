@@ -44,6 +44,7 @@ settings:                          # run settings; the `delegation` skill applie
   review: per-stage                # per-stage | per-milestone | none; who reviews is in `reviewers:`
   human_review: per-milestone      # per-milestone | per-stage | end-only
   milestones: working-slices       # each milestone usable end to end (data + backend + screen); not by layer
+  milestone_gates: ai-then-human   # each planned milestone ends: AI gate, then the owner's gate (references/gates.md)
   verification: suite-output + targeted   # what the foreman re-runs per stage; full suite once per milestone
                                    # integration, on the FIRST merge, not the last
   expected_minutes: {}             # per job, from your own past runs per model and task type; 1.5x = flag at the

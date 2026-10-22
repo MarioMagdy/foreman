@@ -36,32 +36,23 @@ milestone PR (into the previous milestone's branch, or the base for the first) i
 
 **Every milestone ends at the owner's gate** (`human_review: per-milestone`, the default). Once its test plan
 runs clean, the milestone waits for the owner, who tries the whole feature and then accepts it or asks for
-changes. Only the owner merges a milestone PR, after accepting it. The run sheet, `plan.yaml` and the tracker show this gate as
-the milestone's last step, so the owner sees what waits on them. A branch that holds several milestones is a
+changes. Only the owner merges a milestone PR, after accepting it. In `plan.yaml` the gates are nodes: every planned
+milestone ends with an AI gate, then this human gate, so the owner sees what waits on them (`references/gates.md`). A branch that holds several milestones is a
 place to try them together, never a way to merge them past their gates (2026-10-21: a morning summary offered that).
 
-**Milestones are working slices** (the default). Each milestone is something the owner can use end to end (its
+**Milestones are working slices** (the default): one feature or one fix per milestone, which the owner tests as a
+whole. Its title says what it adds in his words; it carries `adds` (1-2 sentences) and `done_when` (2-4 things he
+sees or does). Each milestone is something the owner can use end to end (its
 data, backend and screen together), so its test plan is a real use, not a list of API calls. Do not cut
 milestones by layer (service / engine / screens): on 2026-10-20 layer milestones tangled (M2 could not ship
 without M4's login fix, M6 lived inside M3's PR) and needed an integration branch to test at all.
 
-### Two kinds of sprint (owner, 2026-10-19)
+### Planned and explore milestones (owner, 2026-10-19 and 2026-10-22)
 
-Work comes in sprints, and every sprint is one of two kinds. Name the kind in the run sheet and on the tracker.
-
-| | **Feature sprint** | **Polish sprint** |
-|---|---|---|
-| For | Building a new feature | The owner's test feedback after a feature sprint: small fixes, reviews, adjustments, bake-offs |
-| Shape | Milestones → stages that depend on each other (`needs`), as above | ONE milestone holding independent stages (no `needs` between them, except one shared base) |
-| Branches | Stages stack into the milestone branch | Step 0 merges what the owner kept into one base branch; every fix branches off that base, in parallel, and merges back at the end |
-| Builders | Per the profile | Small explicit fixes suit the cheapest capable builder (e.g. Gemini Flash); each brief names its files and a single CSS file of its own so parallel stages don't collide |
-| Gates | Per stage as the run sheet says | Per stage: targeted tests + typecheck + build; the full suite once on the merged result; then the owner tests |
-| Ends with | The test plan | A short test list of the fixed items, and the next sprint's plan |
-
-When the owner's feedback arrives mid-run, do not bolt the fixes onto the feature milestones: open a polish sprint
-for them (its own milestone and stages in `plan.yaml`), finish it, then start the next feature sprint. A bake-off
-(several prototypes of one idea, rated by the owner and by AI raters) is a polish-sprint stage too; the owner rates
-first and his scores stay sealed.
+A **planned** milestone is the fixed slice above, stacked on the one before. An **explore** milestone holds
+uncertain work: trying options, iterating on what the owner finds, bake-offs, and his batches of test feedback
+(what was the polish sprint). It branches off the base, grows as he tests, nothing in the stack depends on it, and
+it reaches the base only on his word. Read `references/explore.md` before planning one.
 
 ## Publish the run sheet, then stop
 
@@ -126,6 +117,10 @@ required blocks:
 9. **Questions up front, in one batch.** Every decision a stage could block on (access and keys,
    authority, budget, which fallbacks may run, who decides what while the owner is away). Anything
    unanswered gets a default and a named decider in `standing_orders`.
+10. **`plan.yaml`, in the shape `references/gates.md` gives (read it now).** Milestones with `adds` and
+   `done_when`; build, spike and gate nodes; each planned milestone closed by an AI gate, then the human gate. An
+   open choice in the plan (options listed, "evaluate", "try") becomes a spike and a gate, not a question with a
+   recommended answer. Check the file with `python evals/plan_check.py _coord/plan.yaml`.
 
 ## Stage design
 
@@ -207,7 +202,8 @@ STATUS: BLOCKED   waiting on: <stage or input>
 `{"ts","actor","to","kind","ref","summary","artifact"}` with `kind` one of `brief`, `handback`,
 `status`, `clarification`, `criteria_change`, `review`, `verdict`, `fix_brief`, `verify`,
 `fallback`, `hang`, `quota`, `question`, `answer`, `decision`, `staff_request`, `staff_approved`,
-`join`, `milestone_ready`, `milestone_accepted`, `milestone_rejected`. Full texts live in `briefs/` and `reports/`;
+`join`, `milestone_ready`, `milestone_accepted`, `milestone_rejected`, `test_dispute`. A gate's result is a `verdict`
+event with `ref` = the gate id. Full texts live in `briefs/` and `reports/`;
 the event points at them. `milestone_ready` (to the owner, ref `M<n>`, once its test plan runs clean) puts the
 milestone on "Your review"; the owner's `milestone_accepted` (actor `owner`) unlocks its merges;
 `milestone_rejected` sends it back to its stages.
@@ -237,7 +233,8 @@ Otherwise `staffing: single` and everything above applies unchanged.
   check-in runs `health` and restarts the pool when it says `DOWN`.
 - **Live view** — the build tracker (`dashboard/tracker.html`) drawn from the run's files by
   `track-mode/live.py` (needs PyYAML). The architect pass writes `_coord/plan.yaml` (milestones with
-  `tryIt`; stages with `milestone`, `title`, `needs`, `builder`, `track`); the rest comes from the
+  `adds` and `done_when`; stages with `milestone`, `kind`, `title`, `needs`, `builder`, `track`, and gate fields; see
+  `references/gates.md`); the rest comes from the
   events, the launcher, `staffing.yaml`, `tracks/` and `questions.md`. At a glance: now / waiting
   on, a needs-attention box (open questions, stuck stages, staff requests; hidden when empty), the
   team line, milestones, the dependency map, and per stage its manager, worker, live job time and
@@ -298,11 +295,13 @@ Keep it true, or it is worse than none:
 ## The test plan is the deliverable
 
 A milestone is done when the owner can sit down and try it — not when its tests pass. Write
-`TEST_PLAN_M<n>.md` into the run folder and put it in chat. Required parts, in this order:
+`TEST_PLAN_M<n>.md` into the run folder and put it in chat; at the human gate it sits inside the review packet
+(`references/packet.md`, read it before the gate). Required parts, in this order:
 
 1. **Where** — worktree path and branch, and copy-pasteable start commands with ports.
 2. **What changed** — 3–6 lines in the owner's terms.
-3. **Steps** — numbered, each with its expected result. Phone viewport first where the project has
+3. **Steps** — numbered, each with its expected result: first the milestone's `done_when` items, one or more
+   steps each, then the rest. Phone viewport first where the project has
    one. Include the negative cases: non-admin, offline, empty state.
 4. **A label on every step** — `free`, `paid (~$X)`, or `do-not-run`. The owner must never discover
    he spent money by following your plan.
