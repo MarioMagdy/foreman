@@ -180,7 +180,8 @@ def state(coord):
             labels[sid] = str(s["label"])
         stages[sid] = {"sid": sid, "milestone": ms, "order": order[ms], "title": s.get("title", sid),
                        "depends": [str(d) for d in s.get("needs") or []], "worker": s.get("builder"),
-                       "track": s.get("track"), "status": "planned"}
+                       "track": s.get("track"), "status": "planned", "kind": s.get("kind", "build"),
+                       "gate": s.get("gate"), "check": s.get("check"), "bar": s.get("bar")}
     lab = lambda x: labels.get(x, x)
 
     def parent(ref):

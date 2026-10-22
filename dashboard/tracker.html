@@ -145,6 +145,10 @@ button { font: inherit; color: inherit; }
 .msec-head .id { font-family: var(--font-mono); color: var(--accent); font-weight: 500; }
 .tryit { font-size: .92rem; max-width: 75ch; }
 .tryit b { font-weight: 600; }
+.donewhen { margin: .25rem 0 0 1.25rem; padding: 0; }
+.donewhen li { margin: .1rem 0; }
+.tag-kind { display: inline-block; font-size: .68rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 0 6px; border-radius: 4px; border: 1px solid currentColor; line-height: 1.5; color: var(--st-briefed-fg); }
+.tag-kind.gate-human { color: var(--added); }
 .stages { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .srow { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; width: 100%; padding: 10px 12px; background: none; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; }
 .stages > .srow:first-child, .stages > .slot:first-child + .srow { border-top: 0; }
@@ -391,6 +395,15 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   const chip = (s) => `<span class="chip s-${esc(STATUS[s] ? s : "planned")}">${esc(STATUS[s] || s || "Planned")}</span>`;
   const isAdded = (x) => x && x.origin === "added";
   const addedTag = (x) => isAdded(x) ? ' <span class="tag-added" title="Added after planning">added</span>' : "";
+  // Milestone shape (references/gates.md): adds + done_when; old runs only have tryIt.
+  const doneWhen = (m) => Array.isArray(m.done_when) ? m.done_when : [];
+  const msWhat = (m) => (m.kind === "explore" ? '<p class="tryit"><span class="tag-kind">explore</span> Off the stack; reaches the base only on your word.</p>' : "")
+    + (m.adds ? `<p class="tryit"><b>What it adds:</b> ${esc(m.adds)}</p>` : "")
+    + (doneWhen(m).length ? `<div class="tryit"><b>Done when</b><ol class="donewhen">${doneWhen(m).map(d => `<li>${esc(d)}</li>`).join("")}</ol></div>` : "")
+    + (m.tryIt && !m.adds ? `<p class="tryit"><b>You can try:</b> ${esc(m.tryIt)}</p>` : "");
+  const GATE_NAMES = { deterministic: "check gate", ai: "AI gate", human: "your gate" };
+  const kindTag = (s) => s.kind === "gate" ? `<span class="tag-kind gate-${esc(s.gate || "")}" title="${esc([s.check, s.bar && "bar: " + s.bar].filter(Boolean).join(" · "))}">${esc(GATE_NAMES[s.gate] || "gate")}</span> `
+    : s.kind === "spike" ? '<span class="tag-kind" title="Produces a decision with evidence; never merges">spike</span> ' : "";
   const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
   const entryTime = (e) => e.at || e.ts || "";
 
@@ -502,8 +515,8 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
         const last = iters[iters.length - 1];
         rows.push(`<button class="srow${isAdded(s) ? " is-added" : ""}" data-open-stage="${esc(s.sid)}" aria-label="Open stage ${esc(s.sid)}: ${esc(s.title)}">
           <span class="sid">${esc(s.sid)}</span>
-          <span class="what"><span class="t">${esc(s.title)}${addedTag(s)}${s.provisional_on && s.status !== "ready" ? ` <span class="tag-prov" title="Started before ${esc(s.provisional_on)} passed its gate; rebased if it changes">provisional on ${esc(s.provisional_on)}</span>` : ""}</span>
-            <span class="meta">${s.manager ? `<span>manager ${esc(s.manager)}</span>` : ""}<span>${esc(s.worker || "unassigned")}</span>${s.job ? `<span class="live">${jobLine(s.job)}</span>` : ""}<span class="mono">needs ${esc((s.depends || []).join(", ") || "—")}</span>${iters.length ? `<span>${iters.length} iteration${iters.length > 1 ? "s" : ""}${last && last.verdict ? ` · last <span class="verdict ${verdictCls(last.verdict)}">${esc(last.verdict)}</span>` : ""}</span>` : ""}</span>
+          <span class="what"><span class="t">${kindTag(s)}${esc(s.title)}${addedTag(s)}${s.provisional_on && s.status !== "ready" ? ` <span class="tag-prov" title="Started before ${esc(s.provisional_on)} passed its gate; rebased if it changes">provisional on ${esc(s.provisional_on)}</span>` : ""}</span>
+            <span class="meta">${s.manager ? `<span>manager ${esc(s.manager)}</span>` : ""}${s.worker || s.kind !== "gate" ? `<span>${esc(s.worker || "unassigned")}</span>` : ""}${s.job ? `<span class="live">${jobLine(s.job)}</span>` : ""}<span class="mono">needs ${esc((s.depends || []).join(", ") || "—")}</span>${iters.length ? `<span>${iters.length} iteration${iters.length > 1 ? "s" : ""}${last && last.verdict ? ` · last <span class="verdict ${verdictCls(last.verdict)}">${esc(last.verdict)}</span>` : ""}</span>` : ""}</span>
             ${s.note ? `<span class="note">${esc(s.note)}</span>` : ""}${s.why ? `<span class="why">${esc(s.why)}</span>` : ""}</span>
           <span class="right">${chip(s.status)}${safeUrl(s.pr) ? '<span class="count">PR</span>' : ""}</span>
         </button>`);
@@ -513,7 +526,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       if (!l.length) rows.unshift('<div class="srow" style="cursor:default" aria-hidden="true"><span></span><span class="muted">No stages yet.</span><span></span></div>');
       parts.push(`<section class="msec" id="${esc(m.id)}">
         <button class="msec-head" data-open-ms="${esc(m.id)}" aria-label="Open milestone ${esc(m.id)}"><span class="id">${esc(m.id)}</span><h3>${esc(m.title)}</h3>${chip(msStatus(m, l))}${addedTag(m)}</button>
-        ${m.tryIt ? `<p class="tryit"><b>You can try:</b> ${esc(m.tryIt)}</p>` : ""}
+        ${msWhat(m)}
         <div class="stages">${rows.join("")}</div>
       </section>`);
       const next = milestones[mi + 1];
@@ -923,7 +936,9 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
         <h2 id="sheet-title">${esc(m.title)}</h2><div class="row">${chip(msStatus(m, l))}${addedTag(m)}</div></div>
         <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
       <dl class="fields">
-        ${m.tryIt ? `<dt>You can try</dt><dd>${esc(m.tryIt)}</dd>` : ""}
+        ${m.adds ? `<dt>What it adds</dt><dd>${esc(m.adds)}</dd>` : ""}
+        ${doneWhen(m).length ? `<dt>Done when</dt><dd><ol class="donewhen">${doneWhen(m).map(d => `<li>${esc(d)}</li>`).join("")}</ol></dd>` : ""}
+        ${m.tryIt && !m.adds ? `<dt>You can try</dt><dd>${esc(m.tryIt)}</dd>` : ""}
         <dt>Stages</dt><dd>${l.filter(s => DONE.has(s.status)).length} of ${l.length} merged</dd>
         ${originRows(m)}
       </dl>
