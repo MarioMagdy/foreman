@@ -260,6 +260,16 @@ details > .body { padding: 0 16px 16px; display: grid; gap: 12px; min-width: 0; 
     h += `</tbody></table></div></section>`;
   }
 
+  // ---------- follow-up runs (kept out of the numbers above) ----------
+  if ((D.followups || []).length) {
+    h += `<section><h2>Follow-up runs</h2><p class="note">Run after the study on a later skill commit; not part of the numbers above.</p>`;
+    for (const f of D.followups) { const m = f.measured || {};
+      h += `<div class="panel"><p><b>${esc(f.case)}, skill ${esc(f.skill_commit)}</b> · checks ${m.passed_with_evidence ?? "–"}/${m.of ?? "–"} with evidence
+        · ${fmt(f.tokens)} tokens · ${f.minutes} min · ${f.questions} questions</p><p class="note">${esc(f.why)}</p>
+        <ul>${(f.found || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`; }
+    h += `</section>`;
+  }
+
   // ---------- reality + caveats ----------
   const refs = cases.filter(c => c.reference || c.contamination);
   if (refs.length || (V.untested || []).length || (V.caveats || []).length) {

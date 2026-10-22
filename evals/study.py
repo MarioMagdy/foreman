@@ -70,7 +70,7 @@ def measure_plan(plan):
 def measure(study):
     study = Path(study)
     data = json.loads((study / "data.json").read_text(encoding="utf-8"))
-    for run in data["runs"]:
+    for run in data["runs"] + data.get("followups", []):
         d = study / run["dir"]
         plan = yaml.safe_load((d / "_coord" / "plan.yaml").read_text(encoding="utf-8")) or {}
         m = measure_plan(plan)
@@ -79,7 +79,7 @@ def measure(study):
         m["extra_plan_files"] = sorted(p.name for p in d.glob("*PLAN*.md"))
         run["measured"] = m
     (study / "data.json").write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
-    for r in data["runs"]:
+    for r in data["runs"] + data.get("followups", []):
         m = r["measured"]
         print(f"{r['dir']}: {m['passed']}/{m['of']} ({m['passed_with_evidence']} with evidence), gates {m['gates']}, "
               f"build {m['build']} spike {m['spike']}, explore {m['explore_milestones']}")
