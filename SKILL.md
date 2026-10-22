@@ -59,8 +59,8 @@ it reaches the base only on his word. Read `references/explore.md` before planni
 Read the plan, do the architect pass (next section), emit `defaults.yaml` filled in for this job,
 and **wait for a yes before building anything.** The owner is choosing the arrangement, the workers
 and the gates; those are his calls, not yours. Copy `defaults.yaml` from this skill folder as the
-starting shape. Its `architecture`, `staffing`, `profile`, `events` and `restart` blocks are
-**required**: a run sheet with any of them blank is not ready to show.
+starting shape. Its `architecture`, `staffing`, `profile`, `events`, `restart` and `plan_files` blocks are
+**required**: a run sheet with any of them blank, or whose plan files are not written yet, is not ready to show.
 
 **The defaults are the answer unless the owner overrides them; confirm them before work starts.** At setup, put
 every default that shapes the run to the owner as a numbered question whose recommended answer is the skill default

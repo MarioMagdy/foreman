@@ -43,6 +43,10 @@ spike followed by a gate: deterministic when the plan states a measurable bar, h
 or trade-off. Later stages that depend on the choice `need` that gate. A recommended answer in the owner's
 questions is not a substitute: it builds on a choice nobody tested.
 
+Where the spike sits: one with a measurable bar may sit inside a planned milestone. One the owner picks from (taste,
+a bake-off) goes in an explore milestone, because a planned milestone's only human gate is the one that closes it
+(`plan_check` counts them); the winner is then promoted into a planned milestone, or built in the explore one.
+
 ## Gate types
 
 | type | Passes | Report |

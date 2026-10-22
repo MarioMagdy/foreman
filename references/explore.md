@@ -26,7 +26,7 @@ When the owner's test feedback arrives, do not bolt the fixes onto the feature m
 milestone for them, finish it, then go on with the plan.
 
 - Step 0 merges what the owner kept into one base branch; every fix branches off that base, in parallel, with no
-  `needs` between fixes, and merges back.
+  `needs` between fixes unless two touch the same file (then the second needs the first), and merges back.
 - Small explicit fixes suit the cheapest capable builder (e.g. a Gemini Flash); each brief names its files and a
   CSS file of its own, so parallel stages don't collide.
 - Gates per fix: targeted tests, typecheck and build. The full suite runs once on the merged result, then the

@@ -17,6 +17,7 @@ staffing: <single | tracks>                     # tracks -> one manager per trac
 profile: _runs/<run>/_coord/profile.yaml        # copied from profiles/default.yaml; fallback chains pre-approved
 events: _runs/<run>/_coord/events/              # one JSONL file per actor, one line per hand-off
 plan_data: _runs/<run>/_coord/plan.yaml         # milestones + stages (needs, builder, track) for the live view
+plan_files: [PLAN.md, M<n>_PLAN.md per milestone]   # each with a copy-paste brief per stage (SKILL.md "Plan files")
 restart:
   check_in: every <30-60> min (CronCreate, created at start, deleted at the end)
   rebuild_from: _runs/<run>/_coord/             # tracks/<id>.md + events + staffing.yaml
