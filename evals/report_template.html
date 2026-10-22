@@ -1,0 +1,310 @@
+<meta charset="utf-8">
+<title>Foreman Version Study</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; verdict first, tiles, then one section per question, raw detail folded last. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --fg: #14181d; --fg2: #47505b; --muted: #77808b;
+  --line: #e2e6ea; --axis: #c9ced4;
+  --new: #2a78d6; --old: #eb6834; --good: #0ca30c; --good-ink: #006300; --bad: #d03b3b; --hatch: #b8bec6;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1215; --surface: #171a1f; --fg: #eef0f3; --fg2: #c2c8d0; --muted: #8b939e;
+  --line: #2a3038; --axis: #3a414a; --new: #3987e5; --old: #d95926; --good-ink: #0ca30c; --hatch: #4a525c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1215; --surface: #171a1f; --fg: #eef0f3; --fg2: #c2c8d0; --muted: #8b939e;
+  --line: #2a3038; --axis: #3a414a; --new: #3987e5; --old: #d95926; --good-ink: #0ca30c; --hatch: #4a525c; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; font-weight: 600; }
+h1 { font-size: 1.75rem; line-height: 1.2; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: .95rem; }
+p { margin: 0; max-width: 68ch; }
+.mono, code { font-family: var(--mono); font-size: .86em; }
+.eyebrow { font: 500 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+header { display: grid; gap: 10px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--fg2); font-size: .88rem; }
+.ver { display: inline-flex; align-items: center; gap: 6px; }
+.key { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.key.new { background: var(--new); } .key.old { background: var(--old); }
+nav { display: flex; gap: 14px; flex-wrap: wrap; font-size: .9rem; }
+a { color: var(--new); }
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; display: grid; gap: 10px; }
+.call { font-size: 1.3rem; font-weight: 600; line-height: 1.3; }
+.verdict ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; max-width: 72ch; }
+.look { color: var(--fg2); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tile .label { color: var(--fg2); font-size: .85rem; }
+.tile .value { font-size: 1.7rem; font-weight: 600; line-height: 1.15; }
+.tile .vs { color: var(--muted); font-size: .85rem; }
+section { display: grid; gap: 12px; min-width: 0; }
+section > p.lead { color: var(--fg2); font-size: .92rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; overflow-x: auto; }
+.multi { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; color: var(--fg2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+svg text { fill: var(--fg2); font: 12px var(--sans); }
+svg .tick { fill: var(--muted); font: 11px var(--mono); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .base { stroke: var(--axis); stroke-width: 1; }
+svg [data-tip] { cursor: default; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--fg2); font-weight: 500; white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: .84rem; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.pass { color: var(--good-ink); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.pill.fail { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.pill.none { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+.case-row td { background: color-mix(in srgb, var(--fg) 4%, transparent); font-weight: 600; font-size: .82rem; }
+.note { border-left: 3px solid var(--axis); padding: 4px 0 4px 12px; color: var(--fg2); font-size: .9rem; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+summary { cursor: pointer; padding: 12px 16px; font-weight: 500; }
+summary:focus-visible, a:focus-visible { outline: 2px solid var(--new); outline-offset: 2px; }
+details > .body { padding: 0 16px 16px; display: grid; gap: 12px; min-width: 0; overflow-x: auto; }
+.run-card { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+.run-card ul { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; font-size: .88rem; }
+.q { color: var(--fg2); font-style: italic; }
+#tip { position: fixed; pointer-events: none; z-index: 20; max-width: 300px; background: var(--fg); color: var(--bg);
+  font-size: .8rem; line-height: 1.4; padding: 8px 10px; border-radius: 6px; }
+@media (prefers-reduced-motion: no-preference) { .tile, .panel { transition: border-color .15s; } }
+</style>
+
+<div class="wrap" id="app"></div>
+<div id="tip" hidden></div>
+<script type="application/json" id="study-data">/*DATA*/null</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById("study-data").textContent);
+  const app = document.getElementById("app");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ARMS = ["old", "new"];
+  const runs = D.runs || [];
+  const cases = D.cases || [];
+  const label = a => (D.versions[a] || {}).label || a;
+  const short = a => a === "new" ? "New" : "Old";
+  const runName = r => `${short(r.arm)} ${r.n}`;
+  const mean = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  const fmt = (x, d = 0) => x == null ? "–" : Number(x).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: d });
+  const k = x => x == null ? "–" : (x >= 1000 ? fmt(x / 1000, 0) + "k" : fmt(x));
+  const byArm = (rs, f) => Object.fromEntries(ARMS.map(a => [a, rs.filter(r => r.arm === a).map(f).filter(v => v != null)]));
+  const crit = (r, id) => (r.judge && r.judge.criteria && r.judge.criteria[id]) || (r.criteria && r.criteria[id]) || null;
+  const pill = p => p == null ? '<span class="pill none">not coded</span>'
+    : p ? '<span class="pill pass">✓ pass</span>' : '<span class="pill fail">✗ fail</span>';
+  const judged = runs.some(r => r.judge);
+  const V = D.verdict || {};
+
+  // ---------- header + verdict ----------
+  let h = `<header>
+    <div class="eyebrow">foreman version study · ${esc(D.date)} · ${esc(D.id)}</div>
+    <h1>${esc(D.question)}</h1>
+    <div class="meta">${ARMS.map(a => `<span class="ver"><span class="key ${a}"></span>${esc(label(a))} <span class="mono">${esc(D.versions[a].commit)}</span></span>`).join("")}
+      <span>${cases.length} cases · ${runs.length} runs${judged ? " · blind judge" : ""}</span></div>
+    ${(D.links || []).length ? `<nav>${D.links.map(l => `<a href="${esc(l.href)}">${esc(l.text)}</a>`).join("")}</nav>` : ""}
+  </header>`;
+  h += `<div class="verdict"><div class="eyebrow">Verdict</div>
+    <div class="call">${esc(V.call || "In progress: results so far")}</div>
+    ${(V.brief || []).length ? `<ul>${V.brief.map(b => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
+    ${(V.fixes || []).length ? `<div class="eyebrow" style="margin-top:6px">Fix before it ships</div><ul>${V.fixes.map(b => `<li>${esc(b)}</li>`).join("")}</ul>` : ""}
+    ${V.look_at ? `<p class="look"><b>Look at yourself:</b> ${esc(V.look_at)}</p>` : ""}</div>`;
+
+  // ---------- tiles ----------
+  const allCrit = cases.flatMap(c => (c.criteria || []).map(x => ({ c, x })));
+  const critPass = Object.fromEntries(ARMS.map(a => {
+    let p = 0, n = 0;
+    for (const r of runs.filter(r => r.arm === a)) for (const { c, x } of allCrit) if (c.id === r.case) {
+      const v = crit(r, x.id); if (v) { n++; if (v.pass) p++; } }
+    return [a, [p, n]];
+  }));
+  const tok = byArm(runs, r => r.tokens), min = byArm(runs, r => r.minutes), qs = byArm(runs, r => r.questions);
+  const rank = byArm(runs, r => r.judge && r.judge.rank);
+  const tile = (lab, nv, ov, note) => `<div class="tile"><div class="label">${esc(lab)}</div>
+    <div class="value">${nv}</div><div class="vs">${short("old")} (${esc(label("old")).split(" ")[0]}): ${ov}${note ? " · " + note : ""}</div></div>`;
+  const pct = (n, o) => (n == null || !o) ? "" : `${n >= o ? "+" : "−"}${fmt(Math.abs(n - o) / o * 100)}% for new`;
+  h += `<div class="tiles">
+    ${tile("Criteria passed, all runs", `${critPass.new[0]} of ${critPass.new[1]}`, `${critPass.old[0]} of ${critPass.old[1]}`, "per case below")}
+    ${judged ? tile("Blind judge, average rank (1 = best)", fmt(mean(rank.new), 1), fmt(mean(rank.old), 1), `${rank.new.length + rank.old.length} plans ranked`) : ""}
+    ${tile("Tokens per plan", k(mean(tok.new)), k(mean(tok.old)), pct(mean(tok.new), mean(tok.old)))}
+    ${tile("Minutes per plan", fmt(mean(min.new), 1), fmt(mean(min.old), 1), pct(mean(min.new), mean(min.old)))}
+    ${tile("Questions for the owner", fmt(mean(qs.new), 1), fmt(mean(qs.old), 1), "average per plan")}
+  </div>`;
+
+  // ---------- criteria grid ----------
+  const order = [...runs].sort((a, b) => (a.arm === b.arm ? a.n - b.n : a.arm === "old" ? -1 : 1));
+  const runsOf = c => order.filter(r => r.case === c.id);
+  const anyRuns = runsOf(cases[0] || {});
+  h += `<section><h2>Did each plan meet the criteria?</h2>
+    <p class="lead">Criteria were written into the study before the runs${judged ? "; a judge who did not know which version wrote which plan marked them, quoting the plan" : ""}. Hover a mark for the quote.</p>
+    <div class="panel"><table><thead><tr><th>Criterion</th>${anyRuns.map(r => `<th><span class="ver"><span class="key ${r.arm}"></span>${runName(r)}</span></th>`).join("")}</tr></thead><tbody>`;
+  for (const c of cases) {
+    h += `<tr class="case-row"><td colspan="${anyRuns.length + 1}">${esc(c.id)} · ${esc(c.kind)}${c.criteria_registered ? ` · criteria written ${esc(c.criteria_registered)}` : ""}</td></tr>`;
+    for (const x of c.criteria || []) {
+      h += `<tr><td>${esc(x.what)}</td>${runsOf(c).map(r => { const v = crit(r, x.id);
+        return `<td data-tip="${esc(v ? (v.quote || v.evidence || "") + (v.file ? " — " + v.file : "") : "")}">${pill(v ? v.pass : null)}</td>`; }).join("")}</tr>`;
+    }
+  }
+  h += `</tbody></table></div></section>`;
+
+  // ---------- judge dot plots ----------
+  const dims = (D.judge && D.judge.rubric) || [];
+  if (judged && dims.length) {
+    h += `<section><h2>How a blind judge scored each plan</h2>
+      <p class="lead">0–10 per dimension, from the owner's seat. Each dot is one plan; the short bar is the version's average. Hover a dot for the judge's reason.</p>
+      <div class="legend">${ARMS.map(a => `<span><span class="key ${a}"></span>${esc(label(a))}</span>`).reverse().join("")}</div>
+      <div class="multi">${cases.map(c => `<div class="panel"><h3>${esc(c.id)}</h3>${dotPlot(c)}</div>`).join("")}</div></section>`;
+  }
+  function dotPlot(c) {
+    const rs = runs.filter(r => r.case === c.id && r.judge);
+    if (!rs.length) return `<p class="note">Judge pending.</p>`;
+    const W = 460, L = 104, R = 16, T = 22, row = 40, H = T + dims.length * row + 8;
+    const x = v => L + (W - L - R) * v / 10;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Judge scores for ${esc(c.id)}">`;
+    for (let t = 0; t <= 10; t += 2) s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${T - 6}" y2="${H - 8}"/><text class="tick" x="${x(t)}" y="${T - 10}" text-anchor="middle">${t}</text>`;
+    dims.forEach((d, i) => {
+      const y = T + i * row + row / 2;
+      s += `<text x="0" y="${y + 4}">${esc(d.id.replace("_", " "))}</text>`;
+      ARMS.forEach((a, j) => {
+        const off = j ? 7 : -7, mine = rs.filter(r => r.arm === a);
+        const m = mean(mine.map(r => r.judge.rubric[d.id].score));
+        if (m != null) s += `<rect x="${x(m) - 1}" y="${y + off - 9}" width="2" height="18" fill="var(--${a})" opacity=".55"/>`;
+        mine.forEach((r, q) => { const sc = r.judge.rubric[d.id];
+          s += `<circle cx="${x(sc.score) + (q ? 3 : -3)}" cy="${y + off}" r="5" fill="var(--${a})" stroke="var(--surface)" stroke-width="2"
+            data-tip="${esc(runName(r) + " · " + d.id + " " + sc.score + "/10 — " + sc.basis)}"/>`; });
+      });
+    });
+    return s + `</svg>`;
+  }
+
+  // ---------- cost ----------
+  h += `<section><h2>What a plan costs</h2>
+    <p class="lead">Tokens and minutes for one planning run (one subagent), from the tool result. Two charts, two scales.</p>
+    <div class="multi"><div class="panel"><h3>Tokens</h3>${bars(r => r.tokens, k)}</div>
+    <div class="panel"><h3>Minutes</h3>${bars(r => r.minutes, v => fmt(v, 1))}</div></div></section>`;
+  function bars(f, show) {
+    const rs = order.filter(r => f(r) != null);
+    const max = Math.max(...rs.map(f)), W = 460, L = 132, R = 56, bh = 14, gap = 10;
+    let y = 4, s = "";
+    for (const c of cases) {
+      const mine = rs.filter(r => r.case === c.id);
+      if (!mine.length) continue;
+      s += `<text x="0" y="${y + 11}" font-weight="600">${esc(c.id)}</text>`; y += 20;
+      for (const r of mine) {
+        const w = Math.max(2, (W - L - R) * f(r) / max);
+        s += `<text x="12" y="${y + 11}">${runName(r)}</text>
+          <path d="M${L},${y} h${w - 4} a4,4 0 0 1 4,4 v${bh - 8} a4,4 0 0 1 -4,4 h${-(w - 4)} z" fill="var(--${r.arm})"
+            data-tip="${esc(runName(r) + ": " + show(f(r)))}"/>
+          <text x="${L + w + 6}" y="${y + 11}" class="tick">${show(f(r))}</text>`;
+        y += bh + gap;
+      }
+      y += 6;
+    }
+    return `<svg viewBox="0 0 ${W} ${y}" width="100%" role="img">${s}<line class="base" x1="${L}" x2="${L}" y1="0" y2="${y - 6}"/></svg>`;
+  }
+
+  // ---------- format checks ----------
+  const withM = order.filter(r => r.measured);
+  if (withM.length) {
+    h += `<section><h2>Does the plan file follow the new shape?</h2>
+      <p class="lead">The 8 checks in <code>evals/plan_check.py</code>. Several test fields only the new version knows, so this measures format, not quality. A check with nothing to look at (no gates, no explore milestone) passes without proving anything; those are hatched.</p>
+      <div class="legend"><span><span class="sw" style="background:var(--good)"></span>passed, with something to check</span>
+        <span><span class="sw" style="background:repeating-linear-gradient(45deg,var(--hatch) 0 2px,transparent 2px 5px)"></span>passed, nothing to check</span>
+        <span><span class="sw" style="background:var(--bad)"></span>failed</span></div>
+      <div class="panel">${checkBars()}</div></section>`;
+  }
+  function checkBars() {
+    const W = 460, L = 132, R = 40, bh = 16, gap = 10, unit = (W - L - R) / 8;
+    let y = 4, s = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><rect width="2" height="5" fill="var(--hatch)"/></pattern></defs>`;
+    for (const c of cases) {
+      const mine = withM.filter(r => r.case === c.id);
+      if (!mine.length) continue;
+      s += `<text x="0" y="${y + 11}" font-weight="600">${esc(c.id)}</text>`; y += 20;
+      for (const r of mine) {
+        const ch = r.measured.checks, groups = [
+          ["var(--good)", ch.filter(x => x.passed && !x.vacuous)], ["url(#hatch)", ch.filter(x => x.passed && x.vacuous)], ["var(--bad)", ch.filter(x => !x.passed)]];
+        let x0 = L;
+        s += `<text x="12" y="${y + 12}">${runName(r)}</text>`;
+        for (const [fill, xs] of groups) if (xs.length) {
+          const w = xs.length * unit - 2;
+          s += `<rect x="${x0}" y="${y}" width="${w}" height="${bh}" rx="3" fill="${fill}" data-tip="${esc(xs.map(x => x.name + (x.passed ? "" : ": " + x.detail)).join(" · "))}"/>`;
+          x0 += xs.length * unit;
+        }
+        s += `<text x="${L + 8 * unit + 6}" y="${y + 12}" class="tick">${r.measured.passed_with_evidence}/8</text>`;
+        y += bh + gap;
+      }
+      y += 6;
+    }
+    return `<svg viewBox="0 0 ${W} ${y}" width="100%" role="img">${s}</svg>`;
+  }
+
+  // ---------- plan shape table ----------
+  if (withM.length) {
+    h += `<section><h2>What the plans contain</h2><div class="panel"><table><thead><tr><th>Run</th>
+      <th class="num">Milestones</th><th class="num">Explore</th><th class="num">Build</th><th class="num">Spike</th>
+      <th class="num">Check gates</th><th class="num">AI gates</th><th class="num">Owner gates</th><th class="num">Questions</th><th class="num">Run-sheet words</th></tr></thead><tbody>`;
+    for (const c of cases) {
+      h += `<tr class="case-row"><td colspan="10">${esc(c.id)}</td></tr>`;
+      for (const r of withM.filter(r => r.case === c.id)) { const m = r.measured;
+        h += `<tr><td><span class="ver"><span class="key ${r.arm}"></span>${runName(r)}</span></td><td class="num">${m.milestones}</td><td class="num">${m.explore_milestones}</td>
+          <td class="num">${m.build}</td><td class="num">${m.spike}</td><td class="num">${m.gates.deterministic}</td><td class="num">${m.gates.ai}</td>
+          <td class="num">${m.gates.human}</td><td class="num">${r.questions ?? "–"}</td><td class="num">${fmt(m.run_sheet_words)}</td></tr>`; }
+    }
+    h += `</tbody></table></div></section>`;
+  }
+
+  // ---------- reality + caveats ----------
+  const refs = cases.filter(c => c.reference || c.contamination);
+  if (refs.length || (V.untested || []).length || (V.caveats || []).length) {
+    h += `<section><h2>Read with care</h2>`;
+    for (const c of refs) {
+      if (c.reference) h += `<p class="note"><b>${esc(c.id)}, what really happened:</b> ${esc(c.reference)}</p>`;
+      if (c.contamination) h += `<p class="note"><b>${esc(c.id)}, bias:</b> ${esc(c.contamination)}</p>`;
+    }
+    for (const x of V.caveats || []) h += `<p class="note">${esc(x)}</p>`;
+    if ((V.untested || []).length) h += `<p class="note"><b>Not tested by this study:</b> ${V.untested.map(esc).join("; ")}</p>`;
+    h += `</section>`;
+  }
+
+  // ---------- folded detail ----------
+  h += `<section><h2>Details</h2>`;
+  for (const c of cases) {
+    h += `<details><summary>${esc(c.id)}: every plan, the judge's reasons and quotes</summary><div class="body">
+      <p>Input: <code>${esc(c.input)}</code> · source: ${esc(c.source)}</p>`;
+    for (const r of runsOf(c)) {
+      h += `<div class="run-card"><h3><span class="ver"><span class="key ${r.arm}"></span>${runName(r)} · ${esc(label(r.arm))}</span></h3>
+        <p class="mono">${esc(r.dir)}${r.judge ? ` · judge letter ${esc(r.judge.letter)} · rank ${r.judge.rank}` : ""}</p>
+        ${r.judge ? `<p>${esc(r.judge.why)}</p><ul>${dims.map(d => `<li><b>${esc(d.id.replace("_", " "))} ${r.judge.rubric[d.id].score}/10</b>: ${esc(r.judge.rubric[d.id].basis)}</li>`).join("")}</ul>` : ""}
+        <ul>${(c.criteria || []).map(x => { const v = crit(r, x.id); return `<li>${pill(v ? v.pass : null)} ${esc(x.id)}${v ? ` <span class="q">“${esc(v.quote || v.evidence)}”</span>${v.file ? ` <span class="mono">${esc(v.file)}</span>` : ""}` : ""}</li>`; }).join("")}</ul></div>`;
+    }
+    h += `</div></details>`;
+  }
+  h += `<details><summary>Method and how to re-run it</summary><div class="body">
+    <p>${esc(D.method)}</p>
+    ${D.judge ? `<p><b>Judge:</b> ${esc(D.judge.how)}</p><ul>${dims.map(d => `<li><b>${esc(d.id)}</b>: ${esc(d.what)}</li>`).join("")}</ul>` : ""}
+    ${D.judge && D.judge.cost ? `<p>Judge cost: ${Object.entries(D.judge.cost).map(([c, v]) => `${esc(c)} ${k(v.tokens)} tokens, ${fmt(v.minutes, 1)} min`).join(" · ")}. Whole study: ${k(runs.reduce((a, r) => a + (r.tokens || 0), 0) + Object.values(D.judge.cost).reduce((a, v) => a + v.tokens, 0))} tokens.</p>` : ""}
+    <p>Data: <code>data.json</code> in this study's folder; inputs under <code>cases/</code>; every run's files under <code>runs/</code>. Re-render with <code>python evals/study.py report &lt;study folder&gt;</code>.</p>
+    ${(D.notes || []).map(n => `<p class="note">${esc(n)}</p>`).join("")}</div></details></section>`;
+
+  app.innerHTML = h;
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById("tip");
+  document.addEventListener("pointerover", e => {
+    const t = e.target.closest("[data-tip]");
+    if (!t || !t.dataset.tip) { tip.hidden = true; return; }
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+  });
+  document.addEventListener("pointermove", e => {
+    if (tip.hidden) return;
+    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = Math.max(8, x) + "px"; tip.style.top = (e.clientY + 16) + "px";
+  });
+})();
+</script>
