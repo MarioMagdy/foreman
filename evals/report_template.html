@@ -39,7 +39,8 @@ a { color: var(--new); }
 .call { font-size: 1.3rem; font-weight: 600; line-height: 1.3; }
 .verdict ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; max-width: 72ch; }
 .look { color: var(--fg2); }
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.ver { white-space: nowrap; }
 .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .tile .label { color: var(--fg2); font-size: .85rem; }
 .tile .value { font-size: 1.7rem; font-weight: 600; line-height: 1.15; }
@@ -220,7 +221,7 @@ details > .body { padding: 0 16px 16px; display: grid; gap: 12px; min-width: 0; 
       <div class="panel">${checkBars()}</div></section>`;
   }
   function checkBars() {
-    const W = 460, L = 132, R = 40, bh = 16, gap = 10, unit = (W - L - R) / 8;
+    const W = 760, L = 132, R = 40, bh = 16, gap = 10, unit = (W - L - R) / 8;
     let y = 4, s = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><rect width="2" height="5" fill="var(--hatch)"/></pattern></defs>`;
     for (const c of cases) {
       const mine = withM.filter(r => r.case === c.id);
@@ -241,14 +242,14 @@ details > .body { padding: 0 16px 16px; display: grid; gap: 12px; min-width: 0; 
       }
       y += 6;
     }
-    return `<svg viewBox="0 0 ${W} ${y}" width="100%" role="img">${s}</svg>`;
+    return `<svg viewBox="0 0 ${W} ${y}" width="100%" style="max-width:${W}px" role="img">${s}</svg>`;
   }
 
   // ---------- plan shape table ----------
   if (withM.length) {
     h += `<section><h2>What the plans contain</h2><div class="panel"><table><thead><tr><th>Run</th>
       <th class="num">Milestones</th><th class="num">Explore</th><th class="num">Build</th><th class="num">Spike</th>
-      <th class="num">Check gates</th><th class="num">AI gates</th><th class="num">Owner gates</th><th class="num">Questions</th><th class="num">Run-sheet words</th></tr></thead><tbody>`;
+      <th class="num">Check gates</th><th class="num">AI gates</th><th class="num">Owner gates</th><th class="num">Questions</th><th class="num">Words</th></tr></thead><tbody>`;
     for (const c of cases) {
       h += `<tr class="case-row"><td colspan="10">${esc(c.id)}</td></tr>`;
       for (const r of withM.filter(r => r.case === c.id)) { const m = r.measured;
