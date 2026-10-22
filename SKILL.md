@@ -45,6 +45,24 @@ data, backend and screen together), so its test plan is a real use, not a list o
 milestones by layer (service / engine / screens): on 2026-10-20 layer milestones tangled (M2 could not ship
 without M4's login fix, M6 lived inside M3's PR) and needed an integration branch to test at all.
 
+### Two kinds of sprint (owner, 2026-10-19)
+
+Work comes in sprints, and every sprint is one of two kinds. Name the kind in the run sheet and on the tracker.
+
+| | **Feature sprint** | **Polish sprint** |
+|---|---|---|
+| For | Building a new feature | The owner's test feedback after a feature sprint: small fixes, reviews, adjustments, bake-offs |
+| Shape | Milestones → stages that depend on each other (`needs`), as above | ONE milestone holding independent stages (no `needs` between them, except one shared base) |
+| Branches | Stages stack into the milestone branch | Step 0 merges what the owner kept into one base branch; every fix branches off that base, in parallel, and merges back at the end |
+| Builders | Per the profile | Small explicit fixes suit the cheapest capable builder (e.g. Gemini Flash); each brief names its files and a single CSS file of its own so parallel stages don't collide |
+| Gates | Per stage as the run sheet says | Per stage: targeted tests + typecheck + build; the full suite once on the merged result; then the owner tests |
+| Ends with | The test plan | A short test list of the fixed items, and the next sprint's plan |
+
+When the owner's feedback arrives mid-run, do not bolt the fixes onto the feature milestones: open a polish sprint
+for them (its own milestone and stages in `plan.yaml`), finish it, then start the next feature sprint. A bake-off
+(several prototypes of one idea, rated by the owner and by AI raters) is a polish-sprint stage too; the owner rates
+first and his scores stay sealed.
+
 ## Publish the run sheet, then stop
 
 Read the plan, do the architect pass (next section), emit `defaults.yaml` filled in for this job,
