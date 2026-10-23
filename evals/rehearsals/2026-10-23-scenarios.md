@@ -35,4 +35,52 @@ the second repetition (4 more). About 1.3M tokens in all.
 
 ## Results
 
-(filled after the runs)
+All 8 turns passed. 1.39M tokens in all. Workspaces were named w1-w8 so the folder name gave nothing away.
+
+| Turn | Scenario | Skill | Result | Reviewers launched | Tokens | Tool calls | Minutes |
+|---|---|---|---|---|---|---|---|
+| w1 | gate-cost | v2.1 | ran the bench itself, 369; stage NO-GO, fix brief "use `lookup_full`" | 0 | 168,881 | 31 | 6.0 |
+| w6 | gate-cost | v2.1 | same | 0 | 168,130 | 28 | 6.3 |
+| w2 | gate-cost | v2.2 | `verdict` M1-G1 "bar 300 · got 369 · FAIL (round 1 of 3)", same fix brief | 0 | 161,806 | 25 | 5.7 |
+| w8 | gate-cost | v2.2 | same | 0 | 179,748 | 28 | 7.8 |
+| w3 | escalation | v2.2 | 3rd FAIL, question with qid, options, recommended; no 4th fix | 0 | 163,565 | 29 | 7.8 |
+| w7 | escalation | v2.2 | same | 0 | 156,023 | 30 | 8.8 |
+| w4 | packet | v2.2 | all 9 checks | 0 | 198,501 | 34 | 8.5 |
+| w5 | packet | v2.2 | all 9 checks | 0 | 192,977 | 34 | 8.2 |
+
+**Gate cost: the hypothesis did not hold for this case.** Both v2.1 turns ran the bench because the `tryIt` line names
+it, caught 369, and wrote the right ruling; neither launched a reviewer. Mean tokens: v2.1 168.5k, v2.2 170.8k, inside
+the noise. What v2.2 added was the record, not the catch: a gate `verdict` in the one-line format with its round,
+which the 3-round stop and the packet's chart count from. Not tested: a bar written as prose with no command to run.
+
+**Escalation: v2.2 stopped at round 3 in 2 of 2,** asking the owner with a measured recommendation (`lookup_full`,
+p95 234). History for v2.1, which has no written cap: the 2026-10-17 overnight run took one stage through 4 fix
+rounds and another through 3; the 2026-10-11 run, with a 2-round cap as a standing rule, escalated instead.
+
+**Packet: 2 of 2** wrote `packets/M1-G3.json` with both attempts against the bar, ran the test plan before writing
+it, sent `milestone_ready` and published `packet.html` with the tracker. Neither touched `main`.
+
+**Cost.** 156k-199k per turn, most of it reading the skill before deciding. Rule breaks, self-reported (transcripts
+are not kept): w3 called the advisor once.
+
+**Fixture fix after the runs.** Fixture times were later than the real clock, which every turn noticed; the fixture
+date is now the day before. Nothing else in the fixtures changed.
+
+## Gaps found, not fixed yet
+
+1. Whether a gate runs on the stage head before the merge or on the milestone branch after it (w2 and w8 ran
+   M1-G1 before merging; w3 noted fix 1 had merged before the gate passed).
+2. Round counting: gate runs or fix rounds, and whether the stop holds when a measured fix is in hand (w2, w3, w7, w8).
+3. Where a gate's attempts accumulate: its `--json` output replaces the attempts history in `evidence/<gate>.json`
+   that the packet's chart needs (w3, w5, w7). Partly the fixture's check command; the skill names one file for both.
+4. Which tracker a single-staffed run uses: ArtifactData writes or `run.json` (w1, w6, w8).
+5. What a GO with nits does: a fix round first, or a known gap for the owner (w4, w5).
+6. When the stage PR opens (w6, w8).
+7. `packet.md` says the owner accepts "on the tracker", but the tracker has no accept control (checked); w5 asked
+   with a question event instead.
+8. The packet's fix-rounds tile counts a round twice when the stage and the gate both record it (w4).
+9. Nothing says how to add a criterion the plan had and a brief left out (w1 used `criteria_change`). The fixture's
+   brief left the bar out on purpose, to keep the arms equal.
+
+Reported but not reproduced: w4 and w5 said the milestone never shows "Your review". Rebuilt from w5's files with
+`live.py`, it does once `milestone_ready` is logged.

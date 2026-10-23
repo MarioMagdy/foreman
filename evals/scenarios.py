@@ -19,7 +19,7 @@ import sys
 import tempfile
 
 BAR = 300
-TS = "2026-10-23T{}:00+03:00"
+TS = "2026-10-22T{}:00+03:00"   # in the past, so the foreman's own events sort after the fixture's
 
 DOWNSTREAM = '''"""Downstream user service. Replays latencies recorded in production (recorded_latency.json) on a
 simulated clock, so timings are the same on every machine."""
@@ -109,7 +109,7 @@ One milestone is fine.
 
 M1_PLAN = """# M1: Your profile, still fast
 
-Facts (verified 2026-10-23): repo `repo/`, Python 3.12, tests `python -m pytest -q`, branches main -> m1 -> m1-s1.
+Facts (verified 2026-10-22): repo `repo/`, Python 3.12, tests `python -m pytest -q`, branches main -> m1 -> m1-s1.
 Standing rules for every brief: commit to your stage branch after each numbered step; never push.
 
 ## M1-S1 Profile enrichment (brief: briefs/M1-S1.md)
@@ -148,7 +148,7 @@ stages:
 """,
 }
 
-RUN_SHEET = """# run sheet for this job; the owner said yes on 2026-10-23 08:50 (events/owner.jsonl)
+RUN_SHEET = """# run sheet for this job; the owner said yes on 2026-10-22 08:50 (events/owner.jsonl)
 plan: ../../plan.md
 repos: [../../repo]
 architecture:
