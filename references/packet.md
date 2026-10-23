@@ -8,7 +8,8 @@ One page per human gate, inside the run's tracker artifact (never a new artifact
 on the tracker links to `packet.html#<gate id>`. With no hash the page shows a built-in sample, which is also the
 data shape: `gate`, `milestone`, `kind`, `title`, `adds`, `verdict` {recommendation accept|reject|look, ai_gate,
 look_at}, `done_when` [{item, status pass|partial|fail, evidence}], `key_metric` {name, unit, bar, better,
-attempts}, `bakeoff`, `suite` {now, previous}, `timeline` [{id, title, kind, start, end, rounds, wait}],
+attempts}, `bakeoff`, `suite` {now, previous}, `timeline` [{id, title, kind, gate, start, end, rounds, wait, depends}] (`gate`: deterministic|ai|human, from the plan;
+`depends`: the step ids it waited for, from the plan, which draws the small map of the milestone),
 `evidence` [{caption, device, done_when, pass, src}], `folded` {test_plan, reports, links, app, gaps, logs}. Leave
 out what the milestone doesn't have; its chart disappears. The page shows, in this order:
 
@@ -22,7 +23,7 @@ out what the milestone doesn't have; its chart disappears. The page shows, in th
    | Speed against a bar | bars per attempt, the bar drawn as a line |
    | Memory or CPU while running | a line over time, peak and limit marked |
    | Did each `done_when` item pass | a status strip, one block per item |
-   | How the build got there | a small timeline: stages, review rounds, fixes |
+   | How the build got there | a small map of the steps (what waited for what), then a timeline: stages, review rounds, fixes |
    | A bake-off | side-by-side scores, the owner's blind ratings first |
    | A test suite | passed / failed / skipped, and the change since the last gate |
 
