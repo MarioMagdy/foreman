@@ -469,7 +469,37 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     Object.values(m).forEach(l => l.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
     return m;
   }
-  function msStatus(ms, list) {
+  // Milestone links: a milestone's own `needs`, or a stage that needs a stage of another milestone. A plan with
+  // neither stacks its milestones in order.
+  function msNeeds() {
+    const need = {}, msOf = {};
+    milestones.forEach(m => { need[m.id] = new Set(); });
+    stages.forEach(s => { msOf[s.sid] = s.milestone; });
+    stages.forEach(s => (s.depends || []).forEach(p => {
+      const pm = msOf[p];
+      if (pm && pm !== s.milestone && need[pm] && need[s.milestone]) need[s.milestone].add(pm);
+    }));
+    milestones.forEach(m => (m.needs || []).forEach(p => { if (need[p] && p !== m.id) need[m.id].add(p); }));   // plan.yaml milestone `needs`
+    if (!Object.values(need).some(n => n.size)) milestones.forEach((m, i) => { if (i) need[m.id].add(milestones[i - 1].id); });
+    return need;
+  }
+  // Milestones stack, so a merged milestone carries every milestone it is built on: those show as merged
+  // ("in M5.8") even where their own stage merges were never logged. Their stages keep their logged status,
+  // because a stage can be left out on purpose (the losing build of a head-to-head).
+  let inMs = {};
+  function carried(byMs) {
+    const need = msNeeds(), out = {};
+    milestones.filter(m => ownStatus(m, byMs[m.id] || []) === "merged").forEach(m => {
+      const walk = (id) => need[id].forEach(p => {
+        if (out[p] || p === m.id || ownStatus(findMs(p), byMs[p] || []) === "merged") return;
+        out[p] = m.id; walk(p);
+      });
+      walk(m.id);
+    });
+    return out;
+  }
+  const msStatus = (ms, list) => inMs[ms.id] ? "merged" : ownStatus(ms, list);
+  function ownStatus(ms, list) {
     if (!list.length) return ms.gate || ms.status || "planned";
     if (list.every(s => DONE.has(s.status))) return "merged";
     if (ms.gate && list.every(s => s.status === "ready" || DONE.has(s.status))) return ms.gate;   // the owner's gate
@@ -507,6 +537,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
 
     if (mode === "none") return renderNoDb();
     const byMs = byMilestone();
+    inMs = carried(byMs);
 
     if (!milestones.length) {
       $("strip").innerHTML = "";
@@ -603,20 +634,10 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       + `<div class="graph-scroll">${stageSvg([m], byMs)}</div>`;
     $("ms-overview").scrollLeft = keep;
   }
-  // Milestone links: a milestone's own `needs`, or a stage that needs a stage of another milestone. A plan with
-  // neither stacks its milestones in order.
   // ponytail: no transitive reduction, so M5 -> M1 is drawn even when M5 -> M4 -> ... -> M1 already says it.
   function msOverviewSvg(byMs) {
     const NW = 168, NH = 58, CG = 36, RG = 12, P = 8;
-    const need = {}, msOf = {};
-    milestones.forEach(m => { need[m.id] = new Set(); });
-    stages.forEach(s => { msOf[s.sid] = s.milestone; });
-    stages.forEach(s => (s.depends || []).forEach(p => {
-      const pm = msOf[p];
-      if (pm && pm !== s.milestone && need[pm] && need[s.milestone]) need[s.milestone].add(pm);
-    }));
-    milestones.forEach(m => (m.needs || []).forEach(p => { if (need[p] && p !== m.id) need[m.id].add(p); }));   // plan.yaml milestone `needs`
-    if (!Object.values(need).some(n => n.size)) milestones.forEach((m, i) => { if (i) need[m.id].add(milestones[i - 1].id); });
+    const need = msNeeds();
     const depth = {};
     const d = (id, seen) => depth[id] ?? (seen.has(id) ? 0 : (seen.add(id), depth[id] = 1 + Math.max(-1, ...[...need[id]].map(p => d(p, seen)))));
     milestones.forEach(m => d(m.id, new Set()));
@@ -642,9 +663,9 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       const st0 = msStatus(m, l), st = STATUS[st0] ? st0 : "planned", sel = m.id === pickMs;
       const done = l.filter(s => DONE.has(s.status)).length, bw = NW - 20;
       const t = String(m.title || ""), title = t.length > 22 ? t.slice(0, 21) + "…" : t;
-      nodes += `<g class="gnode" tabindex="0" role="button" data-pick-ms="${esc(m.id)}" aria-pressed="${sel}" aria-label="Show the stages of milestone ${esc(m.id)}"><title>${esc(m.id + " " + t + " — " + (STATUS[st0] || st0) + ", " + done + " of " + l.length + " stages merged")}</title>
+      nodes += `<g class="gnode" tabindex="0" role="button" data-pick-ms="${esc(m.id)}" aria-pressed="${sel}" aria-label="Show the stages of milestone ${esc(m.id)}"><title>${esc(m.id + " " + t + " — " + (STATUS[st0] || st0) + (inMs[m.id] ? " as part of " + inMs[m.id] : "") + ", " + done + " of " + l.length + " stages merged")}</title>
         <rect class="shape" x="${x}" y="${y}" width="${NW}" height="${NH}" rx="9" style="fill:var(--st-${st});stroke:${sel ? "var(--accent)" : isAdded(m) ? "var(--added)" : "var(--line)"};stroke-width:${sel ? 2.5 : 1}"/>
-        <text x="${x + 10}" y="${y + 18}" style="fill:var(--st-${st}-fg);font-family:var(--font-mono);font-size:11.5px;font-weight:500">${esc(m.id)} · ${done}/${l.length}${m.kind === "explore" ? " · explore" : ""}</text>
+        <text x="${x + 10}" y="${y + 18}" style="fill:var(--st-${st}-fg);font-family:var(--font-mono);font-size:11.5px;font-weight:500">${esc(m.id)} · ${done}/${l.length}${inMs[m.id] ? " · in " + esc(inMs[m.id]) : m.kind === "explore" ? " · explore" : ""}</text>
         <text x="${x + 10}" y="${y + 35}" style="fill:var(--st-${st}-fg);font-size:12.5px">${esc(title)}</text>
         <rect x="${x + 10}" y="${y + NH - 13}" width="${bw}" height="4" rx="2" style="fill:var(--line)"/>
         <rect x="${x + 10}" y="${y + NH - 13}" width="${l.length ? bw * done / l.length : 0}" height="4" rx="2" style="fill:var(--st-${st}-fg)"/></g>`;
@@ -1007,6 +1028,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
         ${s.kind === "gate" && !s.worker ? "" : `<dt>Worker</dt><dd>${esc(s.worker || "unassigned")}${s.job ? ` · <span class="live">${jobLine(s.job)}</span>` : ""}</dd>`}
         ${s.kind === "gate" ? `<dt>Check</dt><dd>${esc(s.check || "—")}${s.bar ? ` · bar: ${esc(s.bar)}` : ""}</dd>` : ""}
         ${s.gate === "human" ? `<dt>Review packet</dt><dd><a href="packet.html#${esc(s.sid)}">Open the packet for ${esc(s.sid)}</a></dd>` : ""}
+        ${s.mergedVia ? `<dt>Merged</dt><dd>not logged; inferred because <button class="refbtn" data-open-ref="${esc(s.mergedVia)}">${esc(s.mergedVia)}</button>, which is built on it, is merged</dd>` : ""}
         ${s.provisional_on ? `<dt>Provisional on</dt><dd>${esc(s.provisional_on)}: started before it passed its gate; never ready before it; rebased if it changes</dd>` : ""}
         <dt>Needs</dt><dd class="mono">${(s.depends || []).length ? s.depends.map(d => findStage(d) ? `<button class="refbtn" data-open-ref="${esc(d)}">${esc(d)}</button>` : esc(d)).join(" ") : "—"}</dd>
         ${pr ? `<dt>PR</dt><dd><a href="${esc(pr)}" target="_blank" rel="noopener">${esc(pr.replace(/^https?:\/\//, ""))}</a></dd>` : ""}
@@ -1032,6 +1054,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       <div class="sheet-head"><div class="ttl"><span class="mono muted">milestone ${esc(m.id)}</span>
         <h2 id="sheet-title">${esc(m.title)}</h2><div class="row">${chip(msStatus(m, l))}${addedTag(m)}</div></div>
         <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
+      ${inMs[m.id] ? `<p class="muted">Merged as part of <button class="refbtn" data-open-ms="${esc(inMs[m.id])}">${esc(inMs[m.id])}</button>, which is built on it. The stages below show what was logged, so one left unmerged on purpose (like the losing build of a head-to-head) still shows as it was.</p>` : ""}
       <dl class="fields">
         ${m.adds ? `<dt>What it adds</dt><dd>${esc(m.adds)}</dd>` : ""}
         ${doneWhen(m).length ? `<dt>Done when</dt><dd><ol class="donewhen">${doneWhen(m).map(d => `<li>${esc(d)}</li>`).join("")}</ol></dd>` : ""}

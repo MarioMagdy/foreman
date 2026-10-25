@@ -58,6 +58,31 @@ def is_go(v):
     return bool(re.match(r"^(GO|PASS|APPROVED?)\b", v)) and not v.startswith("GO WITH")
 
 
+def ms_of_ref(ref, milestones):
+    """The milestone an unplanned stage ref belongs to: the longest milestone id it starts with, followed by '-' or
+    nothing ('M10-x' is M10, never M1; 'M5.8-F1' is M5.8, never M5). An 'M<n>[.n]' prefix with no such milestone
+    yet becomes a new one; anything else ('P1', 'TP2') goes on the last milestone."""
+    ids = sorted((m["id"] for m in milestones), key=len, reverse=True)
+    hit = next((i for i in ids if ref == i or ref.startswith(i + "-")), None)
+    if hit:
+        return hit
+    m = re.match(r"M\d+(?:\.\d+)*(?=-|$)", ref)
+    return m.group(0) if m else (milestones[-1]["id"] if milestones else "?")
+
+
+def infer_merged(stages):
+    """Stages stack, so a merged stage carries the code of every stage it needs: mark those merged too, with
+    `mergedVia` naming the merged stage, so the page can say the merge was inferred, not logged."""
+    todo = [s for s in stages.values() if s["status"] == "merged"]
+    while todo:
+        s = todo.pop()
+        for d in s.get("depends") or []:
+            p = stages.get(d)
+            if p and p["status"] != "merged":
+                p["status"], p["why"], p["mergedVia"] = "merged", None, s.get("mergedVia") or s["sid"]
+                todo.append(p)
+
+
 def pid_alive(pid):
     """True if a process with this pid exists. Never sends a signal (os.kill on Windows would terminate it)."""
     try:
@@ -211,7 +236,7 @@ def state(coord):
     stage_kinds = {"brief", "fix_brief", "handback", "verify", "verdict", "clarification", "fallback", "hang", "quota", "failed"}
     for ref, evs in by_ref.items():
         if ref and ref not in stages and not (ref.startswith("track-") or ref == "wake" or any(m["id"] == ref for m in milestones))                 and any(e["kind"] in stage_kinds for e in evs):
-            ms = next((m["id"] for m in milestones if ref.startswith(m["id"])), milestones[-1]["id"] if milestones else "?")
+            ms = ms_of_ref(ref, milestones)
             order[ms] = order.get(ms, 0) + 1
             stages[ref] = {"sid": ref, "milestone": ms, "order": order[ms] + 100, "title": ref, "depends": [],
                            "status": "planned", "origin": "added", "addedAt": evs[0]["ts"],
@@ -290,6 +315,8 @@ def state(coord):
         s["status"], s["why"] = st, why
         if st == "blocked" and not (why or "").startswith("waiting on "):  # a question is listed once, as the question
             attention.append({"type": "blocked", "ref": sid, "text": why or "blocked", "at": by_ref[sid][-1]["ts"]})
+    infer_merged(stages)
+    attention = [a for a in attention if stages[a["ref"]]["status"] != "merged"]
     # one entry per question id: who raised it, every hop it took (a manager asks, the orchestrator passes it
     # on to the owner under the same qid), and the options for whoever holds it now
     asks = {}
