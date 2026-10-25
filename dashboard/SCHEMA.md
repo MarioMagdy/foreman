@@ -22,7 +22,7 @@ Rules that apply everywhere:
 
 | Field | Type | Req | Meaning |
 |---|---|---|---|
-| `project` | string | | Name shown in the masthead. Default "Build tracker". |
+| `project` | string | | Name shown in the masthead, under "Foreman", and in the browser tab as "<project> Foreman". Default "Build tracker". |
 | `subtitle` | string | | One line under the name. |
 | `focus` | string | | "Now:" what is happening right now. |
 | `waitingOn` | string | | "Waiting on:" who owes what (usually the owner's decisions). |
@@ -146,7 +146,9 @@ the page says so and hides them.
 
 ## Publish recipe
 
-1. Publish `tracker.html` with the Artifact tool, declaring exactly:
+1. Copy `tracker.html` to the scratchpad, change its `<title>Foreman</title>` to `<title><project> Foreman</title>`
+   (the artifact takes its name from that title, so every tracker is not called "Foreman"), and publish the copy
+   with the Artifact tool, declaring exactly:
 
    ```json
    "capabilities": { "db": {}, "user": { "scopes": ["profile"] } }

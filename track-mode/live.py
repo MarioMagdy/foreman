@@ -1,17 +1,17 @@
 """Foreman live view: writes the run.json that dashboard/tracker.html renders, from a run's _coord/ folder.
 
-    python live.py build --coord <_coord dir> [--out <dir>]   # writes <dir>/run.json (default <coord>/live/)
+    python live.py build --coord <_coord dir> [--out <dir>]   # writes <dir>/run.json + tracker.html (default <coord>/live/)
     python live.py serve --coord <_coord dir> [--port 8765]   # local page; run.json is rebuilt on every read
 
-The page never changes: put tracker.html and run.json side by side (publish tracker.html as the
-Artifact page with `files: {"run.json": ...}`), and the page re-reads run.json every 10 s. To update
+The page never changes: put tracker.html and run.json side by side (publish the built tracker.html, titled
+"<project> Foreman", as the Artifact page with `files: {"run.json": ...}`), and the page re-reads run.json every 10 s. To update
 the claude.ai copy, republish with the new run.json. run.json is plain data and may be edited by hand.
 
 Reads plan.yaml (milestones and stages, written in the architect pass), events/*.jsonl, launcher/,
 staffing.yaml, tracks/*.md and questions.md. Nothing secret goes in: no server password (the launcher
 never writes one), no worktree paths, and artifact paths are made relative to the run.
 """
-import argparse, datetime, glob, http.server, json, os, re, sys
+import argparse, datetime, glob, html, http.server, json, os, re, sys
 
 import yaml  # PyYAML: plan.yaml and staffing.yaml
 
@@ -120,7 +120,9 @@ def load_coord(coord, seen=()):
     for m in plan.get("milestones") or []:
         if not any(x["id"] == str(m["id"]) for x in out["milestones"]):
             out["milestones"].append({"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt"),
-                                      "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when")})
+                                      "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when"),
+                                      # optional milestone-to-milestone dependencies the page draws on its overview map
+                                      "needs": [str(x) for x in (m.get("needs") or [])] or None})
     out["stages"] += plan.get("stages") or []
     return out
 
@@ -321,11 +323,15 @@ def state(coord):
         waits.append(f"Owner: review {', '.join(m['id'] for m in milestones if m['id'] in in_review)} (test plans)")
     # ready stages are not listed: a gated stage merges into its milestone without the owner (default 2026-10-21)
     run_name = os.path.basename(os.path.dirname(coord))
+    project, _, rest = str(plan.get("title") or "").partition(":")
+    project = str(plan.get("project") or "").strip() or project.strip() or run_name   # page shows "<project> foreman"
+    rest = rest.strip() if not plan.get("project") else str(plan.get("title") or "")
     included = [os.path.basename(os.path.dirname(os.path.abspath(str(i)))) for i in plan.get("include") or []]
     out = {
         "meta": {
-            "project": plan.get("title") or run_name,
-            "subtitle": "Runs " + ", ".join(included + [run_name]) if included else f"Run {run_name}",
+            "project": project,
+            "subtitle": (rest + " · " if rest and rest != project else "")
+                        + ("Runs " + ", ".join(included + [run_name]) if included else f"Run {run_name}"),
             "focus": ("Running " + "; ".join(f"{s['sid']} ({short(s['job']['model'])}" + (f", manager {s['manager']})" if s.get('manager') else ")")
                                               for s in running)) if running else "Nothing running.",
             "waitingOn": "; ".join(waits) or "nothing",
@@ -374,10 +380,15 @@ def relabel(out, labels):
     return out
 
 
-def page():
+def titled(project):
+    """The tracker with its <title> set to "<project> Foreman": an artifact is named after the <title> it was published with."""
+    return read(TRACKER).replace("<title>Foreman</title>", f"<title>{html.escape(project)} Foreman</title>", 1)
+
+
+def page(project):
     # a published Artifact gets its document skeleton from claude.ai; a page served locally needs its own
     return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" '
-            'content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>' + read(TRACKER) + "</body></html>")
+            'content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>' + titled(project) + "</body></html>")
 
 
 def main():
@@ -390,14 +401,18 @@ def main():
     if a.cmd == "build":
         out = os.path.join(a.out or os.path.join(a.coord, "live"), "run.json")
         os.makedirs(os.path.dirname(out), exist_ok=True)
+        st = state(a.coord)
         with open(out, "w", encoding="utf-8") as f:
-            json.dump(state(a.coord), f, indent=1)
+            json.dump(st, f, indent=1)
+        with open(os.path.join(os.path.dirname(out), "tracker.html"), "w", encoding="utf-8") as f:
+            f.write(titled(st["meta"]["project"]))  # publish this copy, with run.json beside it
         return print(out)
 
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             js = self.path.split("?")[0].endswith("/run.json")
-            body = (json.dumps(state(a.coord)) if js else page()).encode()
+            st = state(a.coord)
+            body = (json.dumps(st) if js else page(st["meta"]["project"])).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json" if js else "text/html; charset=utf-8")
             self.send_header("Cache-Control", "no-store")

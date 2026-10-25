@@ -252,14 +252,16 @@ Otherwise `staffing: single` and everything above applies unchanged.
   `references/gates.md`); the rest comes from the
   events, the launcher, `staffing.yaml`, `tracks/` and `questions.md`. At a glance: now / waiting
   on, a needs-attention box (open questions, stuck stages, staff requests; hidden when empty), the
-  team line, milestones, the dependency map, and per stage its manager, worker, live job time and
+  team line, milestones, the dependency map (from 5 milestones up: a milestone map on top, and tapping a milestone
+  shows the map of its stages), and per stage its manager, worker, live job time and
   provisional tag; a Map / Timeline switch (timeline: one bar per stage, grouped by manager,
   coloured by phase, with stuck and question marks); and "Managers and their agents": the
   orchestrator on top with what waits on it, then each manager with its stages, the agents working
   for it now and its open asks. On click: iterations, log and every hand-off of a stage; the staffing tree,
   slots and track files. The page never changes: all data is one `run.json` beside it, which the page re-reads every
   10 s and anyone may edit. `live.py build --coord <dir>` writes it; `live.py serve --coord <dir>`
-  serves the page locally. For the owner's phone, publish `dashboard/tracker.html` once with
+  serves the page locally. For the owner's phone, publish the `tracker.html` that `live.py build` writes beside
+  `run.json` (titled "<project> Foreman", so each run's artifact has its own name) once with
   `files: {"run.json": <built file>}` and `capabilities: {comments: {}}`, then republish with the new `run.json` when a stage changes
   state or finishes and when a manager posts an update (each check-in does it too).
   **The owner answers on the page.** Every `question` event carries `qid`, and when it is for the owner,
@@ -293,7 +295,8 @@ See `delegation/references/capabilities.md`. `launcher.py` is Windows-only (ctyp
 ## Dashboard
 
 When the owner asks for a dashboard, tracker or progress page, use the template in `dashboard/`.
-(This section is Claude Code only. Elsewhere, use `live.py serve`, described above.) Publish `dashboard/tracker.html` as an Artifact with `capabilities: {db: {}, user: {scopes: ["profile"]}}`,
+(This section is Claude Code only. Elsewhere, use `live.py serve`, described above.) Publish a copy of `dashboard/tracker.html` whose `<title>` reads "<project> Foreman" (an artifact is named after the
+`<title>` it was published with; never publish the bare "Foreman" title) as an Artifact with `capabilities: {db: {}, user: {scopes: ["profile"]}}`,
 then seed it from the run sheet with one ArtifactData batch. `dashboard/SCHEMA.md` is the data
 contract and has every write; `dashboard/seed-example.json` is a working seed. Record the URL in the
 run sheet (`dashboard.url`). Do not hand-build a new page per project.
