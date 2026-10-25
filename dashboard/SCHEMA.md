@@ -35,6 +35,7 @@ Rules that apply everywhere:
 | `title` | string | yes | Milestone name. |
 | `order` | number | yes | Sort key. Fractions are fine (`1.5` sits between 1 and 2). |
 | `tryIt` | string | | "You can try:" what the owner can do when it is done. |
+| `needs` | string[] | | Milestone ids it builds on. Drawn on the milestone map (shown from 5 milestones), together with links taken from stages that need another milestone's stage; with neither, milestones stack in order. |
 | `status` | status | | Only used when the milestone has no stages; otherwise the status is derived from its stages (all merged = merged, any blocked = blocked, all ready/merged = ready, any started = running). |
 | `origin` | `"planned"` \| `"added"` | | See above. |
 | `addedAt` | ISO string | | When it was added (with `origin:"added"`). |

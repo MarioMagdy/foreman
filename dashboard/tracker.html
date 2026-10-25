@@ -603,7 +603,8 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       + `<div class="graph-scroll">${stageSvg([m], byMs)}</div>`;
     $("ms-overview").scrollLeft = keep;
   }
-  // Milestone links: a stage that needs a stage of another milestone. A plan with none stacks its milestones in order.
+  // Milestone links: a milestone's own `needs`, or a stage that needs a stage of another milestone. A plan with
+  // neither stacks its milestones in order.
   // ponytail: no transitive reduction, so M5 -> M1 is drawn even when M5 -> M4 -> ... -> M1 already says it.
   function msOverviewSvg(byMs) {
     const NW = 168, NH = 58, CG = 36, RG = 12, P = 8;
@@ -614,6 +615,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       const pm = msOf[p];
       if (pm && pm !== s.milestone && need[pm] && need[s.milestone]) need[s.milestone].add(pm);
     }));
+    milestones.forEach(m => (m.needs || []).forEach(p => { if (need[p] && p !== m.id) need[m.id].add(p); }));   // plan.yaml milestone `needs`
     if (!Object.values(need).some(n => n.size)) milestones.forEach((m, i) => { if (i) need[m.id].add(milestones[i - 1].id); });
     const depth = {};
     const d = (id, seen) => depth[id] ?? (seen.has(id) ? 0 : (seen.add(id), depth[id] = 1 + Math.max(-1, ...[...need[id]].map(p => d(p, seen)))));
