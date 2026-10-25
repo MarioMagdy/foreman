@@ -411,6 +411,14 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   // box, check gate = pointed ends, AI gate = notched ends, your gate = pill. Colour stays the status.
   const shapeOf = (s) => s.kind === "spike" ? "spike" : s.kind === "gate" ? ({ ai: "ai", human: "human" }[s.gate] || "check") : "build";
   const SHAPE_NAMES = { build: "build", spike: "spike", check: "check gate", ai: "AI gate", human: "your gate" };
+  // One line per kind, shown in the stage sheet so a click says what the step is and who closes it.
+  const KIND_MEANING = {
+    build: "a worker writes the code; the foreman verifies it (diff, tests, CI) before it merges into the milestone",
+    spike: "answers a question with evidence and ends in a decision; it never merges code",
+    check: "a fixed, repeatable check the foreman runs; it passes only when the bar is met",
+    ai: "a model reviews the milestone or the decision and says go, go with fixes, or no go",
+    human: "you try the milestone yourself and accept or reject it (open the review packet)",
+  };
   function shapeSvg(k, x, y, w, h, style) {
     const p = (pts) => `<path class="shape" d="M${pts.map(q => q.join(",")).join(" L")} Z" style="${style}"/>`;
     const a = Math.min(12, w / 4);
@@ -925,12 +933,13 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     const pr = safeUrl(s.pr);
     const ms = findMs(s.milestone);
     openSheet(`
-      <div class="sheet-head"><div class="ttl"><span class="mono muted">stage ${esc(s.sid)} · ${esc(s.milestone)}${ms ? " " + esc(ms.title) : ""}</span>
+      <div class="sheet-head"><div class="ttl"><span class="mono muted">${esc(SHAPE_NAMES[shapeOf(s)])} ${esc(s.sid)} · ${esc(s.milestone)}${ms ? " " + esc(ms.title) : ""}</span>
         <h2 id="sheet-title">${esc(s.title)}</h2><div class="row">${chip(s.status)}${addedTag(s)}</div></div>
         <button class="close" data-act="close" aria-label="Close" autofocus>×</button></div>
       ${s.why ? `<p class="why" style="color:var(--st-blocked-fg)">${esc(s.why)}</p>` : ""}
       <dl class="fields">
-        ${s.manager ? `<dt>Manager</dt><dd>${esc(s.manager)}${s.track ? " · track " + esc(s.track) : ""}</dd>` : ""}
+        <dt>Kind</dt><dd><span class="shp">${shapeIcon(shapeOf(s))}${esc(SHAPE_NAMES[shapeOf(s)])}</span> · ${esc(KIND_MEANING[shapeOf(s)])}</dd>
+        ${s.manager ? `<dt>Manager</dt><dd>${esc(s.manager)}${s.track ? " · track " + esc(s.track) : ""}</dd>` : (s.track ? `<dt>Track</dt><dd>${esc(s.track)}</dd>` : "")}
         ${s.kind === "gate" && !s.worker ? "" : `<dt>Worker</dt><dd>${esc(s.worker || "unassigned")}${s.job ? ` · <span class="live">${jobLine(s.job)}</span>` : ""}</dd>`}
         ${s.kind === "gate" ? `<dt>Check</dt><dd>${esc(s.check || "—")}${s.bar ? ` · bar: ${esc(s.bar)}` : ""}</dd>` : ""}
         ${s.gate === "human" ? `<dt>Review packet</dt><dd><a href="packet.html#${esc(s.sid)}">Open the packet for ${esc(s.sid)}</a></dd>` : ""}
