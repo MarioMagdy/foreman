@@ -18,4 +18,8 @@ st = {"a": {"sid": "a", "status": "ready", "depends": []},
 live.infer_merged(st)
 assert st["a"]["status"] == st["b"]["status"] == "merged" and st["a"]["mergedVia"] == "c", st
 assert st["x"]["status"] == "ready" and "mergedVia" not in st["c"], st
+ms = [{"id": "M1", "needs": None}]
+live.add_ms(ms, {"id": "M1", "title": "restated", "needs": ["M0"]})
+live.add_ms(ms, {"id": "M2", "needs": None})
+assert ms == [{"id": "M1", "needs": ["M0"]}, {"id": "M2", "needs": None}], ms
 print("test_live OK")

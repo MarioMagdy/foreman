@@ -110,6 +110,16 @@ def iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def add_ms(milestones, m):
+    """The first definition of a milestone wins, but a later plan that restates it may add `needs` (an older plan
+    backfilled without links is still linked by the plan that includes it)."""
+    x = next((x for x in milestones if x["id"] == m["id"]), None)
+    if x is None:
+        milestones.append(m)
+    elif m.get("needs"):
+        x["needs"] = list(dict.fromkeys((x.get("needs") or []) + m["needs"]))
+
+
 def load_coord(coord, seen=()):
     """One _coord folder: events, jobs, plan milestones and stages. plan.yaml `include:` (a list of other _coord
     paths) is loaded first, so an earlier cycle's milestones, stages, events and jobs come before this run's."""
@@ -125,8 +135,7 @@ def load_coord(coord, seen=()):
         for k in ("events", "jobs", "warnings"):
             out[k] += sub[k]
         for m in sub["milestones"]:
-            if not any(x["id"] == m["id"] for x in out["milestones"]):
-                out["milestones"].append(m)
+            add_ms(out["milestones"], m)
         out["stages"] += [x for x in sub["stages"] if not any(str(y["id"]) == str(x["id"]) for y in out["stages"])]
     for f in sorted(glob.glob(os.path.join(coord, "events", "*.jsonl"))):
         for line in read(f).splitlines():
@@ -143,11 +152,10 @@ def load_coord(coord, seen=()):
         out["jobs"].append({k: j.get(k) for k in ("id", "stage", "role", "model", "actor", "status", "submitted", "started",
                                                    "ended", "critical", "expect") if j.get(k) is not None})
     for m in plan.get("milestones") or []:
-        if not any(x["id"] == str(m["id"]) for x in out["milestones"]):
-            out["milestones"].append({"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt"),
-                                      "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when"),
-                                      # optional milestone-to-milestone dependencies the page draws on its overview map
-                                      "needs": [str(x) for x in (m.get("needs") or [])] or None})
+        add_ms(out["milestones"], {"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt"),
+                                   "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when"),
+                                   # optional milestone-to-milestone dependencies the page draws on its overview map
+                                   "needs": [str(x) for x in (m.get("needs") or [])] or None})
     out["stages"] += plan.get("stages") or []
     return out
 
