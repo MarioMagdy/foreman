@@ -154,6 +154,7 @@ def load_coord(coord, seen=()):
     for m in plan.get("milestones") or []:
         add_ms(out["milestones"], {"id": str(m["id"]), "title": m.get("title", ""), "tryIt": m.get("tryIt"),
                                    "kind": m.get("kind", "planned"), "adds": m.get("adds"), "done_when": m.get("done_when"),
+                                   "status": m.get("status"),   # a backfilled milestone with no stages, e.g. merged
                                    # optional milestone-to-milestone dependencies the page draws on its overview map
                                    "needs": [str(x) for x in (m.get("needs") or [])] or None})
     out["stages"] += plan.get("stages") or []

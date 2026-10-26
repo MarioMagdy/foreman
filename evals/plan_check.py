@@ -5,7 +5,8 @@ Usage:
   python evals/plan_check.py --selftest
 
 Shape checked (see references/gates.md):
-  milestones: id, title, adds, done_when (2-4 items), kind planned|explore (default planned)
+  milestones: id, title, adds, done_when (2-4 items), kind planned|explore (default planned); a milestone with a
+              `status` (shipped history backfilled for the tracker) is skipped
   stages:     id, milestone, title, needs, kind build|spike|gate (default build)
   gate stages also carry gate: deterministic|ai|human and check; deterministic ones carry bar.
 """
@@ -29,7 +30,8 @@ def ancestors(sid, by_id):
 
 def check(plan):
     """Return a list of (name, passed, detail)."""
-    ms = plan.get("milestones") or []
+    # ponytail: a milestone with a `status` (merged history backfilled for the tracker) is not new work: skip it
+    ms = [m for m in plan.get("milestones") or [] if not m.get("status")]
     st = plan.get("stages") or []
     by_id = {s["id"]: s for s in st}
     out = []
