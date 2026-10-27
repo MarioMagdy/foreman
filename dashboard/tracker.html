@@ -390,7 +390,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   const STATUS = {
     planned: "Planned", briefed: "Brief ready", running: "Running", verifying: "Verifying",
     review: "In review", fixing: "Fixing", ready: "Ready to merge", merged: "Merged", blocked: "Blocked",
-    owner_review: "Your review", accepted: "Accepted, may merge"   // milestone gate (track-mode/live.py)
+    owner_review: "In your review", accepted: "Accepted, may merge"   // milestone gate (track-mode/live.py)
   };
   const ITER_KINDS = new Set(["build", "review", "fix"]);
   const DONE = new Set(["merged"]);
@@ -503,6 +503,11 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     if (!list.length) return ms.gate || ms.status || "planned";
     if (list.every(s => DONE.has(s.status))) return "merged";
     if (ms.gate && list.every(s => s.status === "ready" || DONE.has(s.status))) return ms.gate;   // the owner's gate
+    // Every node but the human gate is done: the whole milestone is in the owner's review, not running (owner, 2026-10-27).
+    const isHuman = (s) => s.kind === "gate" && s.gate === "human";
+    const work = list.filter(s => !isHuman(s));
+    if (work.length < list.length && work.length && work.every(s => s.status === "ready" || DONE.has(s.status)))
+      return ms.gate === "accepted" ? "accepted" : "owner_review";
     if (list.some(s => s.status === "blocked")) return "blocked";
     if (list.every(s => s.status === "ready" || DONE.has(s.status))) return "ready";
     if (list.some(s => s.status && s.status !== "planned")) return "running";

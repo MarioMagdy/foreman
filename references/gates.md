@@ -55,6 +55,11 @@ a bake-off) goes in an explore milestone, because a planned milestone's only hum
 | **ai** | on its own, when the reviewer says go | full: what was checked, findings, verdict |
 | **human** | only when the owner accepts it on the tracker | the review packet (`references/packet.md`), holding every earlier report of the milestone |
 
+**A milestone waiting on its human gate is "In your review", not "Running"** (owner, 2026-10-27). Once every node of a
+milestone except its human gate is merged or ready, the tracker shows the whole milestone as "In your review" and lists
+it under "Waiting on". It stays so until the owner accepts (`milestone_accepted`) or rejects it, whether or not
+`milestone_ready` has been logged yet.
+
 **Defaults.** Every planned milestone ends with an AI gate, then a human gate, and every other node of the
 milestone leads into the human gate. Add a deterministic gate wherever a `done_when` item or the plan has a number
 or a pass/fail command (speed, memory, a leak scan, a suite written before the build). Add an AI gate in the middle

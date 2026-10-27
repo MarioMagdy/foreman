@@ -110,6 +110,51 @@ def iso(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def awaiting_owner(milestones, stages):
+    """Milestones in the owner's review: every node but the human gate is ready or merged (owner, 2026-10-27).
+
+    A milestone with a human gate counts once its other nodes are done, with or without `milestone_ready`;
+    one the owner already accepted, or a merged history milestone, does not."""
+    stages = list(stages)
+    human = lambda s: s.get("kind") == "gate" and s.get("gate") == "human"
+    open_ms = {s["milestone"] for s in stages if not human(s) and s["status"] not in ("ready", "merged")}
+    gated = {s["milestone"] for s in stages if human(s)}
+    has_work = {s["milestone"] for s in stages if not human(s)}
+    done = merged_milestones(milestones, stages)
+    return {m["id"] for m in milestones
+            if m["id"] not in open_ms and m["id"] not in done and m.get("gate") != "accepted"
+            and (m.get("gate") == "owner_review" or (m["id"] in gated and m["id"] in has_work))}
+
+
+def merged_milestones(milestones, stages):
+    """Merged milestones, as the tracker page shows them: every stage merged (or a merged history entry), plus every
+    milestone a merged one is built on (its `needs` chain and cross-milestone stage `depends`)."""
+    stages = list(stages)
+    by, ms_of = {}, {s["sid"]: s["milestone"] for s in stages}
+    for s in stages:
+        by.setdefault(s["milestone"], []).append(s)
+    ids = {m["id"] for m in milestones}
+    need = {m["id"]: {p for p in (m.get("needs") or []) if p in ids and p != m["id"]} for m in milestones}
+    for s in stages:
+        for p in s.get("depends") or []:
+            pm = ms_of.get(p)
+            if pm and pm != s["milestone"] and pm in need and s["milestone"] in need:
+                need[s["milestone"]].add(pm)
+    if not any(need.values()):   # no links at all: milestones stack in plan order
+        for prev, m in zip(milestones, milestones[1:]):
+            need[m["id"]].add(prev["id"])
+    own = {m["id"] for m in milestones
+           if (by.get(m["id"]) and all(x["status"] == "merged" for x in by[m["id"]]))
+           or (not by.get(m["id"]) and m.get("status") == "merged")}
+    out, stack = set(own), list(own)
+    while stack:
+        for p in need.get(stack.pop(), ()):
+            if p not in out:
+                out.add(p)
+                stack.append(p)
+    return out
+
+
 def add_ms(milestones, m):
     """The first definition of a milestone wins, but a later plan that restates it may add `needs` (an older plan
     backfilled without links is still linked by the plan that includes it)."""
@@ -350,8 +395,7 @@ def state(coord):
         for e in by_ref.get(m["id"], []):
             if e["kind"] in gate_of:
                 m["gate"] = gate_of[e["kind"]]
-    open_ms = {s["milestone"] for s in stages.values() if s["status"] not in ("ready", "merged")}
-    in_review = {m["id"] for m in milestones if m.get("gate") == "owner_review" and m["id"] not in open_ms}
+    in_review = awaiting_owner(milestones, stages.values())
 
     running = [s for s in stages.values() if s.get("job", {}).get("status") == "running"]
     waits = [f"{a['qid'] or a['ref']} ({a['from']} → {a['to'] or 'orchestrator'})" for a in attention if a["type"] != "blocked"]
