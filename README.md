@@ -11,6 +11,7 @@ Written for Claude Code; it also runs under codex, opencode and Gemini CLIs with
 ## See it first
 
 ```
+git clone https://github.com/MarioMagdy/foreman.git && cd foreman
 python -m pip install pyyaml    # for the same python you run the scripts with
 python track-mode/live.py serve --coord track-mode/sample-run/_coord
 ```
@@ -24,6 +25,8 @@ review packet with its built-in sample.
 ![The stage map: builds, AI gates and your review gate per milestone](docs/tracker-stage-map.png)
 
 ## Install
+
+From the clone (Python 3.10+):
 
 ```
 python install.py                      # Claude Code -> ~/.claude/skills/foreman
@@ -124,6 +127,7 @@ skills, not part of this repo.
 ## Tests
 
 ```
+python -m pip install pyyaml pytest   # scenarios.py runs pytest on its fixtures
 python track-mode/test_live.py
 python track-mode/test_launcher.py     # Windows only
 python evals/scenarios.py selftest

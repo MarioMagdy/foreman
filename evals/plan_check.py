@@ -76,6 +76,26 @@ def check(plan):
         for n in (s.get("needs") or []) if by_id.get(n, {}).get("milestone") in explore])
 
     add("needs point at real stages", [f"{s['id']}->{n}" for s in st for n in (s.get("needs") or []) if n not in by_id])
+
+    add("plan has milestones and stages", [k for k in ("milestones", "stages") if not plan.get(k)])
+    new = {m["id"] for m in ms}
+    ids = [x.get("id") for x in ms] + [s.get("id") for s in st if s.get("milestone") in new]
+    add("ids are unique", sorted({str(i) for i in ids if ids.count(i) > 1}))
+    add("new nodes have a title and a known kind",
+        [m["id"] for m in ms if not str(m.get("title") or "").strip() or m.get("kind", "planned") not in ("planned", "explore")]
+        + [s.get("id", "?") for s in st if s.get("milestone") in new
+           and (not str(s.get("title") or "").strip() or s.get("kind", "build") not in ("build", "spike", "gate"))])
+
+    state = {}  # 1 = on the current path, 2 = done
+
+    def loops(sid):
+        if state.get(sid):
+            return state[sid] == 1
+        state[sid] = 1
+        hit = [n for n in by_id[sid].get("needs") or [] if n in by_id and loops(n)]
+        state[sid] = 2
+        return bool(hit)
+    add("needs have no loop", [s["id"] for s in st if s["id"] not in state and loops(s["id"])])
     return out
 
 
@@ -87,9 +107,9 @@ def selftest():
         ],
         "stages": [
             {"id": "M1-S1", "milestone": "M1", "title": "b", "needs": []},
-            {"id": "M1-G1", "milestone": "M1", "kind": "gate", "gate": "deterministic", "check": "c", "bar": "0 leaks", "needs": ["M1-S1"]},
-            {"id": "M1-G2", "milestone": "M1", "kind": "gate", "gate": "ai", "check": "c", "needs": ["M1-G1"]},
-            {"id": "M1-G3", "milestone": "M1", "kind": "gate", "gate": "human", "check": "c", "needs": ["M1-G2"]},
+            {"id": "M1-G1", "milestone": "M1", "kind": "gate", "gate": "deterministic", "title": "t", "check": "c", "bar": "0 leaks", "needs": ["M1-S1"]},
+            {"id": "M1-G2", "milestone": "M1", "kind": "gate", "gate": "ai", "title": "t", "check": "c", "needs": ["M1-G1"]},
+            {"id": "M1-G3", "milestone": "M1", "kind": "gate", "gate": "human", "title": "t", "check": "c", "needs": ["M1-G2"]},
             {"id": "M2-S1", "milestone": "M2", "kind": "spike", "title": "s", "needs": []},
         ],
     }
@@ -104,6 +124,13 @@ def selftest():
     assert failed == {"milestone has 2-4 done_when", "title has no [gate]/layer prefix",
                       "deterministic gate has a bar", "planned milestone ends AI gate -> human gate",
                       "explore milestone stays off the stack"}, failed
+    loop = yaml.safe_load(yaml.safe_dump(good))
+    loop["stages"][0]["needs"] = ["M1-G3"]       # S1 -> G3 -> G2 -> G1 -> S1
+    loop["stages"][4]["kind"] = "task"
+    loop["stages"].append(dict(loop["stages"][3]))
+    failed = {n for n, p, _ in check(loop) if not p}
+    assert {"needs have no loop", "new nodes have a title and a known kind", "ids are unique"} <= failed, failed
+    assert {n for n, p, _ in check({}) if not p} == {"plan has milestones and stages"}, check({})
     print("selftest ok")
 
 

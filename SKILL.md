@@ -50,8 +50,8 @@ place to try them together, never a way to merge them past their gates (a mornin
 whole. Its title says what it adds in the owner's words; it carries `adds` (1-2 sentences) and `done_when` (2-4 things
 they see or do). Each milestone is something the owner can use end to end (its
 data, backend and screen together), so its test plan is a real use, not a list of API calls. Do not cut
-milestones by layer (service / engine / screens): in one run layer milestones tangled (M2 could not ship
-without M4's login fix, M6 lived inside M3's PR) and needed an integration branch to test at all.
+milestones by layer (service / engine / screens): layer milestones tangle (one cannot ship without a fix in
+another) and need an integration branch before anything can be tested.
 
 ### Planned and explore milestones
 
@@ -106,8 +106,8 @@ Filling it in:
   `_coord/plan.yaml` so the dashboard header shows it (always including `human_review`). The `delegation` skill applies them to every worker when installed; without it,
   paste the ones that bind a worker (stage gate, hard stop) into each brief.
 - If the owner wants a dashboard, add its URL under `dashboard:` once published.
-- **Base branch: use `main` unless the owner said otherwise.** If the repo has a `dev` and the job
-  is non-trivial, ask once.
+- **Base branch: the repo's default branch (`main`, `master`, ...) unless the owner said otherwise.** If the repo
+  has a `dev` and the job is non-trivial, ask once.
 - **PRs need a GitHub remote.** Check `git remote -v` and `gh auth status`; with neither, propose
   `stage_prs: local` (branches and merges only, review findings in `reports/`) as the recommended answer.
 - **Keep the run folder out of git:** add `_runs/` to the repo's `.git/info/exclude` (the owner's `.gitignore` is theirs).
@@ -140,7 +140,7 @@ required blocks:
    review rounds and was rebuilt.
 8. **Accounts and quotas before the first job** (at start, not at init). Check that every paid worker account has
    funds (one tiny call each) and count jobs per quota-limited worker: route fix rounds to the fallback, keep the quota for new
-   stages. In one run a paid account ran dry mid-day (HTTP 402) and another worker's quota ran out after ~13 jobs.
+   stages. A paid account can run dry mid-run (HTTP 402), and a quota-limited worker can run out partway through.
 9. **Questions up front, in one batch.** Every decision a stage could block on (access and keys,
    authority, budget, which fallbacks may run, who decides what while the owner is away). Anything
    unanswered gets a default and a named decider in `standing_orders`.
@@ -223,7 +223,7 @@ STATUS: BLOCKED   waiting on: <stage or input>
    every finding in a table (`#n - accepted | accepted, simpler mechanism | rejected - reason`), and
    the re-review judges whether each hole is *closed*, not whether it matches the first proposal.
    **A ruling on a normalizer or identity rule is not READY until a diff on real data against the base branch
-   says what it costs** (rows lost, joins gained). Twice a ruling accepted as "intended" lost real data.
+   says what it costs** (rows lost, joins gained). A ruling accepted as "intended" can quietly lose real data.
 5. **Merge**: the stage PR (body carries the ticket link in whatever format the project's CI checks)
    merges into the milestone branch once its gate passes; the next stage builds on the merged milestone branch.
    When the milestone's last stage is in, run the milestone review and the test plan on the milestone branch,
@@ -232,7 +232,8 @@ STATUS: BLOCKED   waiting on: <stage or input>
    update the dashboard (below).
 
 **Events.** Every hand-off is one JSON line in the actor's own file
-`_runs/<run>/_coord/events/<actor>.jsonl` (one writer per file; readers merge by `ts`):
+`_runs/<run>/_coord/events/<actor>.jsonl` (one writer per file; the foreman writes the owner's answers into
+`owner.jsonl`; readers merge by `ts`):
 `{"ts","actor","to","kind","ref","summary","artifact"}` with `kind` one of `brief`, `handback`,
 `status`, `clarification`, `criteria_change`, `review`, `verdict`, `fix_brief`, `verify`,
 `fallback`, `hang`, `quota`, `question`, `answer`, `decision`, `staff_request`, `staff_approved`,
@@ -331,8 +332,8 @@ this skill fails. If a milestone has nothing to show on real data, say so and se
 not write "observe the heading render" when no heading exists.
 
 **Two gates every multi-stage run needs before "ready", because stage gates miss what crosses stages:**
-- **Milestone review on the top of the stack** by the strongest reviewer the run sheet names. On one run
-  it found 10 holes that eight green stage gates and CI had all passed.
+- **Milestone review on the top of the stack** by the strongest reviewer the run sheet names. It finds
+  what green stage gates and CI let through, because each stage gate sees only its own diff.
 - **End-to-end on real saved data across every repo the run touched**, no live traffic: the real chain
   (export → next tool → import → the client file), plus the app started on a throw-away copy and clicked.
   Write it as `TEST_PLAN_E2E.md`. On the same run it found 8 seams no single-repo plan could see (a hint
@@ -399,13 +400,14 @@ not write "observe the heading render" when no heading exists.
 - A blocked stage stops that stage, not the run. Finish everything unblocked, then say exactly
   what is left and why.
 - **Bulk git cleanup snapshots its target list once, before acting, and never runs while builds start**: a lazy
-  per-repo listing once removed 3 fresh build worktrees.
+  per-repo listing removes build worktrees created while it runs.
 - **Long verification runs in the foreground in chunks under 10 minutes**, or as a launcher job. Background test
   runs and wrapper processes were reaped under memory pressure while the session idled; watch worker PIDs, not
   wrappers. Agent-tool subagents notify on their own and survived every reap.
 - **A stage gate runs what CI runs.** Name the exact command CI uses (e.g. `pytest tests/`, not three subfolders),
-  and treat a green CI run on the pushed head as part of READY. Builders that ran only the folders they touched
-  missed 19 failures in top-level test files that CI caught.
+  and, where the repo has CI, treat a green CI run on the pushed head as part of READY (with `stage_prs: local`,
+  the gate's own run of that command is the evidence). Builders that run only the folders they touched miss
+  failures elsewhere.
 - **Never cancel a running `DROP DATABASE`**: it can leave the database invalid. If it hangs on a checkpoint, use a new
   database name instead.
 - **Standing rules a brief pastes in must not name a model**: a commit-trailer line naming the previous builder
@@ -416,7 +418,7 @@ not write "observe the heading render" when no heading exists.
 
 ## After the run: post-mortem
 
-Every run ends with `postmortems/<yyyy-mm-dd>-<slug>.md` (where: `LOCAL.md`, else beside the run folders): numbers (stages GO, jobs, fix rounds, first-pass review rate, time per stage, interventions, Claude Code usage via `track-mode/usage_split.py`), what went well, what went wrong with root cause and a proposed skill change, and how each agent behaved. Open problems from earlier post-mortems are read before the next run sheet.
+Every run ends with `postmortems/<yyyy-mm-dd>-<slug>.md` (where: `LOCAL.md`, else beside the run folders): numbers (stages GO, jobs, fix rounds, first-pass review rate, time per stage, interventions, model usage where the harness reports it, e.g. Claude Code via `track-mode/usage_split.py`), what went well, what went wrong with root cause and a proposed skill change, and how each agent behaved. Open problems from earlier post-mortems are read before the next run sheet.
 
 ## Related skills — call them, do not reimplement
 

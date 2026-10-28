@@ -50,8 +50,9 @@ settings:                          # run settings; the `delegation` skill applie
                                    # integration, on the FIRST merge, not the last
   expected_minutes: {}             # per job, from your own past runs per model and task type; 1.5x = flag at the
                                    # check-in and a post-mortem question, NOT a kill
-  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md (or the delegation skill's ACTIVITY.log); or 3x expected
-  mailbox_interval_min: 2          # 1-5; idle heartbeat for Gemini workers run through agy (each one is a model call)
+  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md (or the delegation skill's ACTIVITY.log);
+                                   # the launcher stops a job after max(2x expected, this) (its --hang-min)
+  mailbox_interval_min: 2          # 1-5; idle heartbeat for Gemini workers run through agy, the Antigravity CLI (each one is a model call)
   usage_stop: { dispatch: baseline+15, all: baseline+25 }   # weekly-usage % above the reading at start: stop new
                                    # dispatches, then everything. Needs a way to read usage; else leave it out
 
@@ -96,7 +97,7 @@ notify: on-milestone-ready
 owner_updates: every 1h            # from the profile; show it here so the owner confirms or changes it
 
 dashboard:                         # optional; only when the owner asks for a tracker
-  url: <claude.ai artifact url>    # published from dashboard/tracker.html, see dashboard/SCHEMA.md
+  url: <tracker URL>               # a published Artifact in Claude Code, else the live.py serve address
   update: every-stage-transition + every-iteration   # status/meta on transitions; one log entry (with ref) per build/review/fix round
   added_items: origin-added        # anything created after planning carries origin:"added" + addedReason
 

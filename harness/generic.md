@@ -8,7 +8,7 @@ command-line tools.
 
 | Action | Anywhere |
 |---|---|
-| Start a worker or manager | A separate run of an agent CLI (`opencode run`, `codex exec`, a Gemini CLI), each in its own prepared worktree with its brief as a file. On Windows with opencode workers, `track-mode/launcher.py` runs the pool and writes the events for you. Managers are separate CLI runs too: this harness has no subagents. |
+| Start a worker or manager | A separate run of an agent CLI (`opencode run`, `codex exec`, a Gemini CLI), each in its own prepared worktree with its brief as a file. On Windows with opencode workers, `track-mode/launcher.py` runs the pool and writes the events for you. Managers are separate CLI runs too, unless your harness has its own subagents. |
 | Wake on a handback | No outside wake-up exists. Between your own steps, read `_coord/events/launcher.jsonl` (or each worker's exit and its `_scratch/PROGRESS.md` time) and pick up what finished. |
 | Scheduled check-ins | None. Tell the owner at the start that the run moves only while a session is open. |
 | Show the owner the run | From the run folder, start `python <skill>/track-mode/live.py serve --coord _coord` in the background (it runs until stopped) and give the owner its local URL (default `http://127.0.0.1:8765/`). Review packets open at `/packet.html#<gate id>`. |

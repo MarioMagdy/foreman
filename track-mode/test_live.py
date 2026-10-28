@@ -43,7 +43,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 sample = os.path.join(here, "sample-run", "_coord")
 r = subprocess.run([sys.executable, os.path.join(here, "..", "evals", "plan_check.py"), os.path.join(sample, "plan.yaml")],
                    capture_output=True, text=True)
-assert r.returncode == 0 and "8/8 passed" in r.stdout, r.stdout
+assert r.returncode == 0 and "12/12 passed" in r.stdout, r.stdout
 coord = os.path.join(tempfile.mkdtemp(), "_coord")
 shutil.copytree(sample, coord)
 os.makedirs(os.path.join(coord, "packets"))
