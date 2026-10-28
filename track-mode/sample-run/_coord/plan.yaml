@@ -1,0 +1,42 @@
+# Written by the orchestrator in the architect pass; the live view reads it. Stages not listed here
+# that show up in events are drawn as "added after planning". In track mode every stage, joins included,
+# has a manager as its track: the orchestrator manages managers, not stages.
+# Try it: python track-mode/live.py serve --coord track-mode/sample-run/_coord
+title: Log Bench (sample run)
+milestones:
+  - id: M1
+    title: Baseline bench
+    adds: A bench that runs 20 log questions and scores two baseline answerers.
+    done_when:
+      - I run the bench on 20 tasks with one command and it finishes without errors.
+      - I read report v0 and see C0 (raw dump) and C1 (plain agent) scored side by side.
+  - id: M2
+    title: Log parser and request ids
+    adds: A parser that turns a log file into events grouped by request id, and a contender built on it.
+    done_when:
+      - I point the parser at a log file and see every event with its request id.
+      - Report v1 shows C2 next to the baselines on the same 20 tasks.
+  - id: M3
+    title: Tools agent
+    adds: An agent that answers questions about a log file through tools and cites the lines it used.
+    done_when:
+      - I ask a question about a log file and get an answer with file:line citations.
+      - Report v2 ranks C3 against every earlier contender.
+stages:
+  - { id: M1-S1, milestone: M1, title: Runner, needs: [], builder: fast, track: B }
+  - { id: M1-S2, milestone: M1, title: Code scorer, needs: [], builder: careful, track: B }
+  - { id: M1-S3, milestone: M1, title: Contender C0 raw dump, needs: [], builder: careful, track: B }
+  - { id: M1-S4, milestone: M1, title: Baseline runs and report v0, needs: [M1-S1, M1-S2, M1-S3], builder: fast, track: B }
+  - { id: M1-G1, milestone: M1, kind: gate, gate: ai, title: Milestone review, check: "reviewer reads the M1 diff against done_when", needs: [M1-S4], track: B }
+  - { id: M1-G2, milestone: M1, kind: gate, gate: human, title: Your review, check: review packet, needs: [M1-G1], track: B }
+  - { id: M2-S1, milestone: M2, title: Log parser core, needs: [], builder: fast + careful, track: A }
+  - { id: M2-S2, milestone: M2, title: Clock check and dedupe, needs: [M2-S1], builder: fast, track: A }
+  - { id: M2-S3, milestone: M2, title: Contender C2 request ids, needs: [M2-S2], builder: careful, track: A }
+  - { id: M2-S4, milestone: M2, title: Run C2 and report v1, needs: [M1-S4, M2-S3], builder: fast, track: A }
+  - { id: M2-G1, milestone: M2, kind: gate, gate: ai, title: Milestone review, check: "reviewer reads the M2 diff against done_when", needs: [M2-S4], track: A }
+  - { id: M2-G2, milestone: M2, kind: gate, gate: human, title: Your review, check: review packet, needs: [M2-G1], track: A }
+  - { id: M3-S1, milestone: M3, title: Tools layer, needs: [M2-S2], builder: fast, track: A2 }
+  - { id: M3-S2, milestone: M3, title: Contender C3 tools agent, needs: [M3-S1], builder: fast, track: A2 }
+  - { id: M3-S3, milestone: M3, title: Run C3 and report v2, needs: [M2-S4, M3-S2], builder: fast, track: A }
+  - { id: M3-G1, milestone: M3, kind: gate, gate: ai, title: Milestone review, check: "reviewer reads the M3 diff against done_when", needs: [M3-S3], track: A }
+  - { id: M3-G2, milestone: M3, kind: gate, gate: human, title: Your review, check: review packet, needs: [M3-G1], track: A }

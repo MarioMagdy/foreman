@@ -1,0 +1,598 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Milestone Review Packet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column read top-down: verdict, tiles, charts in a two-up grid, evidence, then folded detail.
+   Opens packets/<gate id>.json named by the hash (packet.html#M1-G3); with no hash it shows the built-in sample. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --fg: #14181d; --fg2: #47505b; --muted: #77808b;
+  --line: #e2e6ea; --axis: #c9ced4;
+  --s1: #2a78d6; --s2: #eb6834; --good: #0ca30c; --good-ink: #006300; --bad: #d03b3b; --warn: #fab219; --hatch: #b8bec6;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1215; --surface: #171a1f; --fg: #eef0f3; --fg2: #c2c8d0; --muted: #8b939e;
+  --line: #2a3038; --axis: #3a414a; --s1: #3987e5; --s2: #d95926; --good-ink: #0ca30c; --hatch: #4a525c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1215; --surface: #171a1f; --fg: #eef0f3; --fg2: #c2c8d0; --muted: #8b939e;
+  --line: #2a3038; --axis: #3a414a; --s1: #3987e5; --s2: #d95926; --good-ink: #0ca30c; --hatch: #4a525c; color-scheme: dark }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 24px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 24px; }
+h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+h1 { font-size: 1.6rem; line-height: 1.2; }
+h2 { font-size: 1.05rem; }
+p { margin: 0; max-width: 70ch; }
+a { color: var(--s1); }
+code, .mono { font-family: var(--mono); font-size: .86em; }
+.eyebrow { font: 500 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sample { border: 1px dashed var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 8px; padding: 10px 14px; font-size: .9rem; }
+header { display: grid; gap: 8px; }
+.sub { color: var(--fg2); font-size: .9rem; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.rec { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 1.2rem; font-weight: 600; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: .8rem; font-weight: 500; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.pass { color: var(--good-ink); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.pill.fail { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.pill.part { color: var(--fg); background: color-mix(in srgb, var(--warn) 22%, transparent); }
+.verdict ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; max-width: 76ch; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 2px; align-content: start; }
+.tile .label { color: var(--fg2); font-size: .84rem; }
+.tile .value { font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.tile .note { color: var(--muted); font-size: .82rem; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; overflow-x: auto; }
+.panel .lead { color: var(--fg2); font-size: .86rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .82rem; color: var(--fg2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+svg text { fill: var(--fg2); font: 12px var(--sans); }
+svg .tick { fill: var(--muted); font: 11px var(--mono); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .base { stroke: var(--axis); stroke-width: 1; }
+.strip { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.panel.wide { grid-column: 1 / -1; }   /* the done-when list spans the row, so the charts beside it don't leave a white column */
+.dw { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 6px; background: color-mix(in srgb, var(--fg) 3%, transparent); }
+.dw .n { font: 600 .9rem var(--mono); width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; color: #fff; }
+.dw .n.pass { background: var(--good); } .dw .n.fail { background: var(--bad); } .dw .n.part { background: var(--warn); color: #14181d; }
+.dw .ev { color: var(--muted); font-size: .8rem; }
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.shot { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: grid; }
+.shot img, .shot .ph { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; max-width: 100%; }
+.ph { display: grid; place-items: center; color: var(--muted); font: .8rem var(--mono); text-align: center; padding: 12px;
+  background: repeating-linear-gradient(45deg, transparent 0 8px, color-mix(in srgb, var(--fg) 4%, transparent) 8px 16px); }
+.shot .cap { padding: 10px 12px; display: grid; gap: 4px; font-size: .86rem; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+summary { cursor: pointer; padding: 11px 16px; font-weight: 500; }
+summary:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+details > .body { padding: 0 16px 16px; display: grid; gap: 10px; min-width: 0; overflow-x: auto; }
+pre { margin: 0; white-space: pre-wrap; font: .82rem/1.5 var(--mono); background: color-mix(in srgb, var(--fg) 4%, transparent); padding: 10px 12px; border-radius: 6px; }
+.report { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.cmd { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cmd button { font: .8rem var(--sans); padding: 3px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.decide { color: var(--fg2); font-size: .9rem; }
+#tip { position: fixed; pointer-events: none; z-index: 20; max-width: 300px; background: var(--fg); color: var(--bg); font-size: .8rem; line-height: 1.4; padding: 7px 9px; border-radius: 6px; }
+</style>
+
+<div class="wrap" id="app"><p class="eyebrow">Loading the packet…</p></div>
+<div id="tip" hidden></div>
+<script type="application/json" id="sample">
+{
+ "sample": true,
+ "gate": "M4-G5",
+ "milestone": "M4",
+ "kind": "explore",
+ "title": "Find the failing request faster",
+ "adds": "You pick a search panel for the log viewer from three prototypes; then it is built, with a filter you can save, one Actions button on every request row, and the request you are tracing standing out in the list.",
+ "verdict": {
+  "recommendation": "accept",
+  "ai_gate": "M4-G4 (sonnet-5.5): go. 0 blocking findings, 2 notes: the panel lags on a 50k-line file; the Actions menu's focus order skips Copy link.",
+  "look_at": "Open yesterday's log, search for the 500s and save the filter: it now sits in the panel's top row."
+ },
+ "done_when": [
+  {
+   "item": "I clicked through three search-panel prototypes on my laptop, rated them before seeing anyone else's scores, and picked one.",
+   "status": "pass",
+   "evidence": "Picked C on 21 Oct; your scores sealed before the judge's"
+  },
+  {
+   "item": "In the built panel, time range, status, text search and saved filters sit together, and I save a filter from the results.",
+   "status": "pass",
+   "evidence": "shot 1, shot 2"
+  },
+  {
+   "item": "Each request row has one Actions button (and right-click) holding Copy link, Show trace, Hide and Pin; a running export still shows Stop / Retry on its row.",
+   "status": "partial",
+   "evidence": "shot 3; right-click not tried in Safari"
+  },
+  {
+   "item": "The request I am tracing is outlined and the others are dimmed, and I decided whether one trace or several can be pinned.",
+   "status": "pass",
+   "evidence": "shot 4; you chose one trace at a time"
+  }
+ ],
+ "key_metric": {
+  "name": "Clicks to the failing request",
+  "unit": "clicks",
+  "bar": 2,
+  "better": "lower",
+  "attempts": [
+   {
+    "label": "today",
+    "value": 3.4
+   },
+   {
+    "label": "prototype C",
+    "value": 1.4
+   },
+   {
+    "label": "built, round 1",
+    "value": 2.3
+   },
+   {
+    "label": "built, round 2",
+    "value": 1.3
+   }
+  ]
+ },
+ "bakeoff": {
+  "question": "Which search panel?",
+  "picked": "C",
+  "options": [
+   {
+    "id": "A",
+    "name": "One form, organised",
+    "owner": 6,
+    "ai": 7,
+    "measured": "2.1 clicks"
+   },
+   {
+    "id": "B",
+    "name": "Side bar with live counts",
+    "owner": 7,
+    "ai": 8,
+    "measured": "1.6 clicks"
+   },
+   {
+    "id": "C",
+    "name": "Top bar and a facet column",
+    "owner": 9,
+    "ai": 7,
+    "measured": "1.4 clicks"
+   }
+  ]
+ },
+ "suite": {
+  "now": {
+   "passed": 1284,
+   "failed": 0,
+   "skipped": 6
+  },
+  "previous": {
+   "label": "M3 close",
+   "passed": 1251,
+   "failed": 0,
+   "skipped": 6
+  }
+ },
+ "timeline": [
+  {
+   "id": "M4-S1",
+   "title": "Every search control today",
+   "kind": "spike",
+   "start": 0,
+   "end": 0.5,
+   "rounds": 1,
+   "depends": []
+  },
+  {
+   "id": "M4-S2",
+   "title": "Three panel prototypes A, B, C",
+   "kind": "spike",
+   "start": 0.5,
+   "end": 2.2,
+   "rounds": 1,
+   "depends": [
+    "M4-S1"
+   ]
+  },
+  {
+   "id": "M4-S3",
+   "title": "One pinned trace or several",
+   "kind": "spike",
+   "start": 0,
+   "end": 0.6,
+   "rounds": 1,
+   "depends": []
+  },
+  {
+   "id": "M4-G1",
+   "title": "Nothing lost in any prototype",
+   "kind": "gate",
+   "start": 2.2,
+   "end": 2.4,
+   "rounds": 1,
+   "depends": [
+    "M4-S2"
+   ],
+   "gate": "deterministic"
+  },
+  {
+   "id": "M4-G2",
+   "title": "Your pick",
+   "kind": "gate",
+   "start": 2.4,
+   "end": 9.0,
+   "rounds": 1,
+   "depends": [
+    "M4-G1",
+    "M4-S3"
+   ],
+   "gate": "human",
+   "wait": true
+  },
+  {
+   "id": "M4-S4",
+   "title": "The search panel you picked",
+   "kind": "build",
+   "start": 9.0,
+   "end": 10.6,
+   "rounds": 2,
+   "depends": [
+    "M4-G2"
+   ]
+  },
+  {
+   "id": "M4-S5",
+   "title": "One Actions button",
+   "kind": "build",
+   "start": 9.0,
+   "end": 9.8,
+   "rounds": 1,
+   "depends": [
+    "M4-G2"
+   ]
+  },
+  {
+   "id": "M4-S6",
+   "title": "One pinned trace at a time",
+   "kind": "build",
+   "start": 9.0,
+   "end": 9.5,
+   "rounds": 1,
+   "depends": [
+    "M4-G2"
+   ]
+  },
+  {
+   "id": "M4-S7",
+   "title": "The traced request in focus",
+   "kind": "build",
+   "start": 9.8,
+   "end": 10.9,
+   "rounds": 2,
+   "depends": [
+    "M4-S5",
+    "M4-S6"
+   ]
+  },
+  {
+   "id": "M4-G3",
+   "title": "Full suite, nothing lost",
+   "kind": "gate",
+   "start": 10.9,
+   "end": 11.6,
+   "rounds": 2,
+   "depends": [
+    "M4-S4",
+    "M4-S7"
+   ],
+   "gate": "deterministic"
+  },
+  {
+   "id": "M4-G4",
+   "title": "Milestone review",
+   "kind": "gate",
+   "start": 11.6,
+   "end": 12.1,
+   "rounds": 1,
+   "depends": [
+    "M4-G3"
+   ],
+   "gate": "ai"
+  }
+ ],
+ "evidence": [
+  {
+   "caption": "Search panel: time range, status, text and saved filters in the top row",
+   "device": "laptop 1440×900",
+   "done_when": 2,
+   "pass": true
+  },
+  {
+   "caption": "Save a filter from the results; it shows in the panel",
+   "device": "laptop 1440×900",
+   "done_when": 2,
+   "pass": true
+  },
+  {
+   "caption": "Request row Actions menu; Stop / Retry still on a running export",
+   "device": "laptop 1440×900",
+   "done_when": 3,
+   "pass": true
+  },
+  {
+   "caption": "Traced request outlined, the others dimmed",
+   "device": "phone 390×844",
+   "done_when": 4,
+   "pass": true
+  }
+ ],
+ "folded": {
+  "test_plan": "1. Open yesterday's log, open the search panel: time range, status, text and saved filters sit in the top row. (free)\n2. Search status:500 and save the filter: it shows in the panel. (free)\n3. In the list, open Actions on a row: Copy link, Show trace, Hide, Pin. (free)\n4. Start an export, then look at its row: Stop / Retry are still there. (free, uses a 2 MB sample log)\n5. Pin one request's trace: it is outlined and the others dim. (free)",
+  "reports": [
+   {
+    "gate": "M4-G1",
+    "type": "deterministic",
+    "text": "search controls reachable in A, B, C · bar 100% · got 100% / 100% / 100% · PASS   (cmd: npx playwright test search/inventory; raw: evidence/M4-G1.json)"
+   },
+   {
+    "gate": "M4-G3",
+    "type": "deterministic",
+    "text": "clicks to the failing request · bar ≤ 2 · got 1.3 · previous 2.3 (round 1, FAIL) · PASS   (cmd: npx playwright test search/clicks; raw: evidence/M4-G3.json)\nfull suite · bar 0 failing · got 0 of 1,290 · PASS"
+   },
+   {
+    "gate": "M4-G4",
+    "type": "ai",
+    "text": "sonnet-5.5 read the whole explore/search diff against the four done_when items and critiqued the panel at phone and laptop size. Verdict: go. Notes: (1) the panel lags on a 50k-line file; (2) focus order in the Actions menu skips Copy link."
+   }
+  ],
+  "links": [
+   {
+    "text": "Branch explore/search",
+    "href": "#"
+   },
+   {
+    "text": "PR: explore/search into M3",
+    "href": "#"
+   }
+  ],
+  "app": {
+   "url": "http://127.0.0.1:4494",
+   "start": "npm run preview -- --port 4494"
+  },
+  "gaps": [
+   "Right-click on a request row was not tried in Safari.",
+   "The panel lags on very large files (AI gate note 1)."
+  ],
+  "logs": "M4-G3 round 1: clicks 2.3 > 2 (status filter sat one level down) -> fix brief to M4-S4 -> round 2: 1.3"
+ }
+}
+</script>
+<script>
+(async function () {
+  const app = document.getElementById("app");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmt = (x, d = 0) => x == null ? "–" : Number(x).toLocaleString("en-US", { maximumFractionDigits: d, minimumFractionDigits: d });
+  const id = decodeURIComponent(location.hash.slice(1));
+  let P;
+  if (!id || id === "sample") P = JSON.parse(document.getElementById("sample").textContent);
+  else {
+    try { const r = await fetch(`packets/${encodeURIComponent(id)}.json`, { cache: "no-store" }); if (!r.ok) throw 0; P = await r.json(); }
+    catch (e) { app.innerHTML = `<p>No review packet for <b>${esc(id)}</b> yet. The foreman writes <code>packets/${esc(id)}.json</code> when the gate opens.</p><p><a href="tracker.html">Back to the tracker</a></p>`; return; }
+  }
+  const V = P.verdict || {}, F = P.folded || {};
+  const st = s => s === "pass" || s === true ? ["pass", "✓ pass"] : s === "partial" ? ["part", "◐ partly"] : ["fail", "✗ fail"];
+  const dws = P.done_when || [];
+  // Node shapes, the same as the tracker's map: build = rounded box, spike = slanted box, check gate = pointed ends,
+  // AI gate = notched ends, your gate = pill.
+  const shapeOf = (t) => t.kind === "spike" ? "spike" : t.kind === "gate" ? ({ ai: "ai", human: "human" }[t.gate] || "check") : "build";
+  const SHAPE_NAMES = { build: "build", spike: "spike", check: "check gate", ai: "AI gate", human: "your gate" };
+  const KIND_FILL = { build: "var(--s1)", spike: "var(--s2)", check: "var(--fg2)", ai: "var(--fg2)", human: "var(--fg2)" };
+  function shapeSvg(k, x, y, w, h, style) {
+    const p = (pts) => `<path d="M${pts.map(q => q.join(",")).join(" L")} Z" style="${style}"/>`;
+    const a = Math.min(12, w / 4);
+    if (k === "spike") return p([[x + a, y], [x + w, y], [x + w - a, y + h], [x, y + h]]);
+    if (k === "check") return p([[x + a, y], [x + w - a, y], [x + w, y + h / 2], [x + w - a, y + h], [x + a, y + h], [x, y + h / 2]]);
+    if (k === "ai") return p([[x, y], [x + w, y], [x + w - a, y + h / 2], [x + w, y + h], [x, y + h], [x + a, y + h / 2]]);
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${k === "human" ? h / 2 : Math.min(7, h / 4)}" style="${style}"/>`;
+  }
+  let h = "";
+  if (P.sample) h += `<div class="sample"><b>Sample packet.</b> Every number, score and finding on this page is made up to show the layout; nothing was built.</div>`;
+  h += `<header><div class="eyebrow">Review packet · ${esc(P.gate)} · ${esc(P.kind || "planned")} milestone ${esc(P.milestone)}</div>
+    <h1>${esc(P.title)}</h1><div class="sub"><span>${esc(P.adds)}</span></div></header>`;
+
+  // verdict
+  const recTxt = { accept: "Recommend: accept", reject: "Recommend: send back", look: "Your call: look first" }[V.recommendation] || "Your call";
+  const recCls = { accept: "pass", reject: "fail" }[V.recommendation] || "part";
+  h += `<div class="verdict"><div class="eyebrow">Verdict</div>
+    <div class="rec"><span class="pill ${recCls}">${esc(recTxt)}</span></div>
+    <ul>${V.ai_gate ? `<li><b>AI gate:</b> ${esc(V.ai_gate)}</li>` : ""}${V.look_at ? `<li><b>Look at yourself:</b> ${esc(V.look_at)}</li>` : ""}</ul>
+    <p class="decide">Accept or send it back by telling the orchestrator (in chat, or in a comment on the <a href="tracker.html">tracker</a>). Nothing reaches the base branch until you do.</p></div>`;
+
+  // tiles
+  const passed = dws.filter(d => d.status === "pass").length;
+  const km = P.key_metric, last = km && km.attempts[km.attempts.length - 1];
+  const rounds = (P.timeline || []).reduce((a, t) => a + Math.max(0, (t.rounds || 1) - 1), 0);
+  h += `<div class="tiles">
+    <div class="tile"><div class="label">Done-when items passed</div><div class="value">${passed} of ${dws.length}</div><div class="note">${dws.length - passed ? `${dws.length - passed} partly or not` : "all"}</div></div>
+    ${km ? `<div class="tile"><div class="label">${esc(km.name)}</div><div class="value">${fmt(last.value, 1)} ${esc(km.unit)}</div><div class="note">bar ${km.better === "lower" ? "≤" : "≥"} ${fmt(km.bar, 1)} · ${(km.better === "lower" ? last.value <= km.bar : last.value >= km.bar) ? "meets it" : "misses it"}</div></div>` : ""}
+    <div class="tile"><div class="label">Fix rounds</div><div class="value">${rounds}</div><div class="note">across ${(P.timeline || []).length} nodes</div></div>
+    <div class="tile"><div class="label">Open gaps</div><div class="value">${(F.gaps || []).length}</div><div class="note">listed under Details</div></div>
+  </div>`;
+
+  // charts
+  h += `<div class="grid2">`;
+  h += `<div class="panel wide"><h2>Did each done-when item pass?</h2><div class="strip">${dws.map((d, i) => { const [c, t] = st(d.status);
+    return `<div class="dw"><span class="n ${c}" aria-label="${t}">${i + 1}</span><div>${esc(d.item)}<div class="ev">${esc(d.evidence || "")}</div></div><span class="pill ${c}">${t}</span></div>`; }).join("")}</div></div>`;
+  if (P.bakeoff) h += `<div class="panel"><h2>Bake-off: ${esc(P.bakeoff.question)}</h2>
+    <p class="lead">Your blind scores first, then the AI judge's; you picked ${esc(P.bakeoff.picked)}.</p>
+    <div class="legend"><span><span class="sw" style="background:var(--s1)"></span>your score</span><span><span class="sw" style="background:var(--s2)"></span>AI judge</span></div>${bakeoff(P.bakeoff)}</div>`;
+  if (km) h += `<div class="panel"><h2>${esc(km.name)}, against the bar</h2><p class="lead">One column per attempt; the line is the bar. A check that has failed once shows it can fail.</p>${metric(km)}</div>`;
+  if (P.suite) h += `<div class="panel"><h2>Test suite</h2>${suite(P.suite)}</div>`;
+  h += `</div>`;
+  const linked = (P.timeline || []).some(t => (t.depends || []).length);
+  if ((P.timeline || []).length) h += `<div class="panel"><h2>How the milestone got here</h2>
+    <div class="legend">${["build", "spike", "check", "ai", "human"].filter(k => P.timeline.some(t => shapeOf(t) === k) || (linked && k === "human")).map(k =>
+      `<span><svg width="22" height="14" aria-hidden="true">${shapeSvg(k, 1, 1, 20, 12, `fill:${KIND_FILL[k]}`)}</svg>${SHAPE_NAMES[k]}</span>`).join("")}
+      <span><span class="sw" style="background:var(--hatch)"></span>waiting on you</span>
+      <span><span class="sw" style="background:var(--warn);width:3px"></span>fix round</span></div>
+    ${linked ? `<p class="lead">How the steps connect: each arrow runs from a step to the one that waited for it.</p>${map(P.timeline)}` : ""}
+    <p class="lead">Hours from the milestone's start. Ticks inside a bar are fix rounds; the long pale bar is time waiting on you.</p>${timeline(P.timeline)}</div>`;
+
+  // evidence
+  if ((P.evidence || []).length) h += `<section style="display:grid;gap:10px"><h2>Evidence</h2><div class="shots">${P.evidence.map(e => `<figure class="shot" style="margin:0">
+      ${e.src ? `<img src="${esc(e.src)}" alt="${esc(e.caption)}">` : `<div class="ph">screenshot: ${esc(e.device || "")}${P.sample ? "<br>(sample, no image)" : ""}</div>`}
+      <figcaption class="cap"><span>${esc(e.caption)}</span><span>${(() => { const [c, t] = st(e.pass); return `<span class="pill ${c}">${t}</span>`; })()} <span class="mono" style="color:var(--muted)">done-when ${esc(e.done_when)}</span></span></figcaption></figure>`).join("")}</div></section>`;
+
+  // folded
+  h += `<section style="display:grid;gap:10px"><h2>Details</h2>`;
+  if (F.test_plan) h += `<details><summary>Test plan (the foreman ran it first)</summary><div class="body"><pre>${esc(F.test_plan)}</pre></div></details>`;
+  if ((F.reports || []).length) h += `<details><summary>Every gate report of this milestone (${F.reports.length})</summary><div class="body">${F.reports.map(r => `<div class="report"><b>${esc(r.gate)} · ${esc(r.type)}</b><pre>${esc(r.text)}</pre></div>`).join("")}</div></details>`;
+  if ((F.links || []).length || F.app) h += `<details><summary>Links and the running app</summary><div class="body">
+    ${(F.links || []).map(l => `<p><a href="${esc(l.href)}" target="_blank" rel="noopener">${esc(l.text)}</a></p>`).join("")}
+    ${F.app ? `<p>App: <span class="mono">${esc(F.app.url)}</span></p><div class="cmd"><code id="startcmd">${esc(F.app.start)}</code><button type="button" id="copy">Copy</button></div>` : ""}</div></details>`;
+  if ((F.gaps || []).length) h += `<details><summary>Known gaps (${F.gaps.length})</summary><div class="body"><ul>${F.gaps.map(g => `<li>${esc(g)}</li>`).join("")}</ul></div></details>`;
+  if (F.logs) h += `<details><summary>Raw logs</summary><div class="body"><pre>${esc(F.logs)}</pre></div></details>`;
+  h += `</section>`;
+  app.innerHTML = h;
+
+  const copy = document.getElementById("copy");
+  if (copy) copy.onclick = () => navigator.clipboard.writeText(F.app.start).then(() => { copy.textContent = "Copied"; },
+    () => { const r = document.createRange(); r.selectNodeContents(document.getElementById("startcmd")); getSelection().removeAllRanges(); getSelection().addRange(r); });
+
+  function bakeoff(b) {
+    const W = 460, L = 168, R = 30, bh = 12, x = v => L + (W - L - R) * v / 10;
+    let y = 8, s = "";
+    for (let t = 0; t <= 10; t += 2) s += `<text class="tick" x="${x(t)}" y="10" text-anchor="middle">${t}</text>`;
+    y = 18;
+    const top = y;
+    for (const o of b.options) {
+      s += `<text x="0" y="${y + 12}" font-weight="${o.id === b.picked ? 600 : 400}">${esc(o.id)} · ${esc(o.name.length > 21 ? o.name.slice(0, 20) + "…" : o.name)}</text>`;
+      s += `<text x="0" y="${y + 27}" class="tick">${esc(o.measured || "")}${o.id === b.picked ? " · picked" : ""}</text>`;
+      [["owner", "var(--s1)"], ["ai", "var(--s2)"]].forEach(([k, c], j) => {
+        const w = x(o[k]) - L, yy = y + j * (bh + 3);
+        s += `<path d="M${L},${yy} h${w - 4} a4,4 0 0 1 4,4 v${bh - 8} a4,4 0 0 1 -4,4 h${-(w - 4)} z" fill="${c}" data-tip="${esc(`${o.id} ${o.name}: ${k === "owner" ? "your score" : "AI judge"} ${o[k]}/10`)}"/>
+          <text x="${L + w + 5}" y="${yy + 10}" class="tick">${o[k]}</text>`;
+      });
+      y += 46;
+    }
+    for (let t = 0; t <= 10; t += 2) s = `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="${top - 4}" y2="${y - 10}"/>` + s;
+    return `<svg viewBox="0 0 ${W} ${y}" width="100%" role="img" aria-label="Bake-off scores">${s}</svg>`;
+  }
+  function metric(m) {
+    const W = 460, H = 200, L = 34, R = 10, T = 14, B = 44;
+    const max = Math.max(m.bar, ...m.attempts.map(a => a.value)) * 1.15;
+    const y = v => T + (H - T - B) * (1 - v / max), slot = (W - L - R) / m.attempts.length, bw = Math.min(24, slot * .5);
+    let s = "";
+    const step = max > 5 ? 2 : 1;
+    for (let t = 0; t <= max; t += step) s += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text class="tick" x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`;
+    m.attempts.forEach((a, i) => {
+      const ok = m.better === "lower" ? a.value <= m.bar : a.value >= m.bar, cx = L + slot * i + slot / 2, top = y(a.value), base = y(0);
+      s += `<path d="M${cx - bw / 2},${base} v${-(base - top - 4)} a4,4 0 0 1 4,-4 h${bw - 8} a4,4 0 0 1 4,4 v${base - top - 4} z" fill="${ok ? "var(--good)" : "var(--bad)"}"
+          data-tip="${esc(`${a.label}: ${a.value} ${m.unit} · ${ok ? "meets" : "misses"} the bar`)}"/>
+        <text x="${cx}" y="${top - 5}" text-anchor="middle" class="tick">${ok ? "✓" : "✗"} ${a.value}</text>
+        <text x="${cx}" y="${H - B + 16}" text-anchor="middle">${esc(a.label.split(", ")[0])}</text>
+        ${a.label.includes(", ") ? `<text x="${cx}" y="${H - B + 30}" text-anchor="middle" class="tick">${esc(a.label.split(", ")[1])}</text>` : ""}`;
+    });
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(m.bar)}" y2="${y(m.bar)}" stroke="var(--fg)" stroke-width="1.5"/>
+      <text x="${W - R}" y="${y(m.bar) - 5}" text-anchor="end" class="tick">bar ${m.better === "lower" ? "≤" : "≥"} ${m.bar}</text>
+      <line class="base" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(m.name)} per attempt">${s}</svg>`;
+  }
+  function suite(su) {
+    const rows = [["this gate", su.now], [su.previous ? su.previous.label : null, su.previous]].filter(r => r[1]);
+    const max = Math.max(...rows.map(r => r[1].passed + r[1].failed + r[1].skipped)), W = 460, L = 92, R = 10, bh = 18;
+    let s = `<defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="var(--surface)"/><rect width="2" height="5" fill="var(--hatch)"/></pattern></defs>`;
+    rows.forEach(([lab, r], i) => {
+      const yy = 6 + i * 34; let x0 = L;
+      s += `<text x="0" y="${yy + 13}">${esc(lab)}</text>`;
+      [["passed", "var(--good)"], ["failed", "var(--bad)"], ["skipped", "url(#hatch)"]].forEach(([k, c]) => {
+        if (!r[k]) return; const w = Math.max(3, (W - L - R) * r[k] / max);
+        s += `<rect x="${x0}" y="${yy}" width="${w - 2}" height="${bh}" rx="3" fill="${c}" data-tip="${esc(`${lab}: ${fmt(r[k])} ${k}`)}"/>`; x0 += w;
+      });
+    });
+    const d = su.previous ? su.now.passed - su.previous.passed : null;
+    return `<div class="legend"><span><span class="sw" style="background:var(--good)"></span>passed ${fmt(su.now.passed)}</span><span><span class="sw" style="background:var(--bad)"></span>failed ${fmt(su.now.failed)}</span>
+      <span><span class="sw" style="background:repeating-linear-gradient(45deg,var(--hatch) 0 2px,transparent 2px 5px)"></span>skipped ${fmt(su.now.skipped)}</span></div>
+      <svg viewBox="0 0 ${W} ${6 + rows.length * 34}" width="100%" role="img" aria-label="Test suite results">${s}</svg>
+      ${d != null ? `<p class="lead">${d >= 0 ? "+" : "−"}${fmt(Math.abs(d))} passing tests since ${esc(su.previous.label)}; failures ${su.previous.failed} → ${su.now.failed}.</p>` : ""}`;
+  }
+  // The milestone's steps as a small map: one column per depth (a step sits right of everything it depends on),
+  // the same shapes as the tracker, plus this gate at the end so the owner sees where he is.
+  // When the columns would shrink below 3/4 size (a phone), the depths run top to bottom instead.
+  function map(tl) {
+    const NW = 112, NH = 50, DG = 20, SG = 10;   // node size, gap between depths, gap between siblings
+    const ids = new Set(tl.map(t => t.id));
+    const sinks = tl.filter(t => !tl.some(o => (o.depends || []).includes(t.id))).map(t => t.id);
+    const all = ids.has(P.gate) ? tl : [...tl, { id: P.gate, title: "Your review, now", kind: "gate", gate: "human", depends: sinks, here: true }];
+    const by = Object.fromEntries(all.map(t => [t.id, t])), depth = {};
+    const d = (t, seen = new Set()) => {
+      if (depth[t.id] != null) return depth[t.id];
+      if (seen.has(t.id)) return 0;   // a cycle in bad data: stop rather than loop
+      seen.add(t.id);
+      const ps = (t.depends || []).filter(p => by[p]);
+      return (depth[t.id] = ps.length ? 1 + Math.max(...ps.map(p => d(by[p], seen))) : 0);
+    };
+    all.forEach(t => d(t));
+    const cols = [];
+    all.forEach(t => (cols[depth[t.id]] ||= []).push(t));
+    const rows = Math.max(...cols.map(c => c.length)), wide = cols.length * (NW + DG) - DG + 4;
+    const V = app.clientWidth - 66 < wide * 0.75;
+    const W = V ? rows * (NW + SG) - SG + 4 : wide, H = V ? cols.length * (NH + DG) - DG + 4 : rows * (NH + SG) - SG + 8;
+    const pos = {};
+    cols.forEach((c, i) => c.forEach((t, j) => {
+      pos[t.id] = V ? { x: (W - c.length * (NW + SG) + SG) / 2 + j * (NW + SG), y: 2 + i * (NH + DG) }
+                    : { x: 2 + i * (NW + DG), y: (H - c.length * (NH + SG) + SG) / 2 + j * (NH + SG) };
+    }));
+    let edges = "", nodes = "";
+    all.forEach(t => {
+      const b = pos[t.id], k = shapeOf(t), max = k === "build" ? 15 : 13;
+      (t.depends || []).forEach(p => {
+        const a = pos[p]; if (!a) return;
+        let path;
+        if (V) { const x1 = a.x + NW / 2, y1 = a.y + NH, x2 = b.x + NW / 2, y2 = b.y - 2, m = (y1 + y2) / 2;
+          path = `M${x1},${y1} C${x1},${m} ${x2},${m} ${x2},${y2} M${x2 - 3.5},${y2 - 6} L${x2},${y2} L${x2 + 3.5},${y2 - 6}`; }
+        else { const x1 = a.x + NW, y1 = a.y + NH / 2, x2 = b.x - 2, y2 = b.y + NH / 2, m = (x1 + x2) / 2;
+          path = `M${x1},${y1} C${m},${y1} ${m},${y2} ${x2},${y2} M${x2 - 6},${y2 - 3.5} L${x2},${y2} L${x2 - 6},${y2 + 3.5}`; }
+        edges += `<path d="${path}" style="fill:none;stroke:var(--muted);stroke-width:1.2"/>`;
+      });
+      // title on up to two lines of `max` characters, broken at spaces; the tooltip has the rest
+      const lines = [""];
+      for (const w of t.title.split(" ")) { const l = lines.length - 1; if (!lines[l] || (lines[l] + " " + w).length <= max) lines[l] += (lines[l] ? " " : "") + w; else lines.push(w); }
+      if (lines.length > 2) lines[1] = lines.slice(1).join(" ");
+      const fit = s => s.length > max ? s.slice(0, max - 1) + "…" : s;
+      const c = KIND_FILL[k], tx = b.x + (k === "build" ? 9 : 14);
+      nodes += `<g data-tip="${esc(`${t.id} ${t.title} · ${SHAPE_NAMES[k]}`)}">${shapeSvg(k, b.x, b.y, NW, NH,
+          `fill:color-mix(in srgb, ${c} ${t.here ? 26 : 12}%, var(--surface));stroke:${c};stroke-width:${t.here ? 2 : 1.2}`)}
+        <text x="${tx}" y="${b.y + 15}" class="tick">${esc(t.id)}</text>${lines.slice(0, 2).map((s, i) => `<text x="${tx}" y="${b.y + 30 + i * 13}" style="fill:var(--fg);font-size:11.5px">${esc(fit(s))}</text>`).join("")}</g>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="How the steps of ${esc(P.milestone)} depend on each other">${edges}${nodes}</svg>`;
+  }
+  function timeline(tl) {
+    const W = 760, L = 230, R = 16, rh = 22, end = Math.max(...tl.map(t => t.end)), x = v => L + (W - L - R) * v / end;
+    let s = "";
+    const step = end > 24 ? 6 : end > 8 ? 2 : 1;
+    for (let t = 0; t <= end; t += step) s += `<line class="grid" x1="${x(t)}" x2="${x(t)}" y1="14" y2="${18 + tl.length * rh}"/><text class="tick" x="${x(t)}" y="10" text-anchor="middle">${t}h</text>`;
+    tl.forEach((t, i) => {
+      const yy = 18 + i * rh, c = t.wait ? "var(--hatch)" : t.kind === "spike" ? "var(--s2)" : t.kind === "gate" ? "var(--fg2)" : "var(--s1)";
+      const w = Math.max(4, x(t.end) - x(t.start));
+      s += `${shapeSvg(shapeOf(t), 1, yy + 3, 16, 10, `fill:${KIND_FILL[shapeOf(t)]}`)}<text x="22" y="${yy + 12}"><tspan class="tick">${esc(t.id)}</tspan> ${esc(t.title.length > 21 ? t.title.slice(0, 20) + "…" : t.title)}</text>
+        <rect x="${x(t.start)}" y="${yy + 2}" width="${w}" height="12" rx="3" fill="${c}" data-tip="${esc(`${t.id} ${t.title}: ${fmt(t.end - t.start, 1)} h, ${t.rounds || 1} round(s)`)}"/>`;
+      for (let r = 1; r < (t.rounds || 1); r++) s += `<rect x="${x(t.start) + w * r / t.rounds - 1}" y="${yy}" width="2" height="16" fill="var(--warn)"/>`;
+    });
+    return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${22 + tl.length * rh}" width="100%" style="min-width:600px" role="img" aria-label="Milestone timeline">${s}</svg></div>`;
+  }
+
+  const tip = document.getElementById("tip");
+  document.addEventListener("pointerover", e => { const t = e.target.closest("[data-tip]"); if (!t) { tip.hidden = true; return; } tip.textContent = t.dataset.tip; tip.hidden = false; });
+  document.addEventListener("pointermove", e => { if (tip.hidden) return; tip.style.left = Math.max(8, Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8)) + "px"; tip.style.top = (e.clientY + 16) + "px"; });
+})();
+</script>

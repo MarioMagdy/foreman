@@ -1,0 +1,11 @@
+{
+ "id": "M2-S3-reviewer-1",
+ "stage": "M2-S3",
+ "role": "reviewer",
+ "model": "opencode-go/mimo-v2.6-pro",
+ "actor": "A",
+ "status": "running",
+ "submitted": "2026-10-15T15:52:00Z",
+ "started": "2026-10-15T15:53:00Z",
+ "ended": null
+}

@@ -1,0 +1,2 @@
+{"ts": "2026-10-15T15:02:00Z", "actor": "manager:A2", "kind": "verify", "ref": "M3-S1", "summary": "18/20: both failures are rotated .gz logs, which the parser cannot open", "artifact": "evidence/M3-S1-verify.txt"}
+{"ts": "2026-10-15T15:50:00Z", "actor": "manager:A2", "to": "builder:opencode-go/deepseek-v4.1-flash", "kind": "fallback", "ref": "M3-S1", "summary": "step-5 hung twice on M3-S1 -> deepseek (next in the approved chain)"}

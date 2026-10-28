@@ -1,0 +1,12 @@
+{
+ "id": "M3-S1-builder-3",
+ "stage": "M3-S1",
+ "role": "builder",
+ "model": "opencode-go/deepseek-v4.1-flash",
+ "actor": "A2",
+ "status": "running",
+ "submitted": "2026-10-15T15:51:00Z",
+ "started": "2026-10-15T15:51:00Z",
+ "ended": null,
+ "critical": true
+}

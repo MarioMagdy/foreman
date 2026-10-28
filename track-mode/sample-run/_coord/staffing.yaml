@@ -1,0 +1,4 @@
+# who manages what; managers add `requested` rows, only the orchestrator sets the rest
+- { id: A,  track: parsing,     parent: top, model: opus-5.5/medium, status: active }
+- { id: B,  track: measuring,   parent: top, model: opus-5.5/medium, status: active }
+- { id: A2, track: tools-layer, parent: A,   model: opus-5.5/medium, status: active, why: "M3-S1 and M3-S2 can run beside M2-S3", asked_by: A }

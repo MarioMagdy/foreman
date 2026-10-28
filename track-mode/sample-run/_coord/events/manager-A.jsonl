@@ -1,0 +1,9 @@
+{"ts": "2026-10-12T08:31:00Z", "actor": "manager:A", "kind": "verify", "ref": "M2-S1", "summary": "Re-ran T1-T9 on both builds: step-5 9/9, deepseek 8/9 (T7 multi-line stack trace)", "artifact": "evidence/M2-S1-verify.txt"}
+{"ts": "2026-10-12T08:32:00Z", "actor": "manager:A", "to": "orchestrator", "kind": "decision", "ref": "M2-S1", "summary": "Keep the step-5 build; deepseek's 8/9 recorded for the builder comparison (H1)"}
+{"ts": "2026-10-12T09:20:00Z", "actor": "manager:A", "kind": "verdict", "ref": "M2-S1", "summary": "GO WITH CHANGES: findings posted on PR #4 before any fix", "verdict": "GO WITH CHANGES"}
+{"ts": "2026-10-12T10:45:00Z", "actor": "manager:A", "to": "reviewer:sonnet-5.5", "kind": "fallback", "ref": "M2-S1", "summary": "mimo on the same Go plan -> sonnet-5.5 re-review, as manager B noted in shared/"}
+{"ts": "2026-10-12T11:20:00Z", "actor": "manager:A", "kind": "verdict", "ref": "M2-S1", "summary": "GO: all 3 findings closed", "verdict": "GO", "state": "ready"}
+{"ts": "2026-10-12T13:02:00Z", "actor": "manager:A", "to": "orchestrator", "kind": "question", "ref": "M2-S2", "summary": "Q1: a multi-line stack trace's citation: first line or the whole span?", "qid": "Q1", "artifact": "questions.md"}
+{"ts": "2026-10-12T15:16:00Z", "actor": "manager:A", "kind": "verify", "ref": "M2-S2", "summary": "Re-ran the 8 clock-check tests: 8/8; dedupe agrees with a hand count on 41/41 requests", "artifact": "evidence/M2-S2-verify.txt"}
+{"ts": "2026-10-13T08:45:00Z", "actor": "manager:A", "kind": "verdict", "ref": "M2-S2", "summary": "GO: ready, PR #6", "verdict": "GO", "state": "ready"}
+{"ts": "2026-10-13T09:15:00Z", "actor": "manager:A", "to": "orchestrator", "kind": "staff_request", "ref": "M3-S1", "summary": "Sub-manager A2 for the tools layer: M3-S1 and M3-S2 can run beside M2-S3", "artifact": "staffing.yaml"}
