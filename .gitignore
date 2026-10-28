@@ -12,3 +12,11 @@ node_modules/
 BASELINE-v2.md
 GREEN-v2.md
 __pycache__/
+# private, never published
+postmortems/
+_audit/
+TODO.md
+.claude/
+.pytest_cache/
+track-mode/wake.py
+evals/studies/

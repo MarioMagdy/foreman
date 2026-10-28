@@ -1,10 +1,11 @@
 # The review packet (human gate)
 
-Read this before a human gate: it is what the owner opens to accept or reject a milestone. Its job is that he
-does not have to read the code.
+Read this before a human gate: it is what the owner opens to accept or reject a milestone. Its job is that they
+do not have to read the code.
 
 One page per human gate, inside the run's tracker artifact (never a new artifact per gate): publish
-`dashboard/packet.html` beside the tracker and write `packets/<gate id>.json` for each human gate; the gate's row
+`dashboard/packet.html` beside the tracker and write `_coord/packets/<gate id>.json` for each human gate
+(`live.py build` copies them to `packets/` beside the page); the gate's row
 on the tracker links to `packet.html#<gate id>`. With no hash the page shows a built-in sample, which is also the
 data shape: `gate`, `milestone`, `kind`, `title`, `adds`, `verdict` {recommendation accept|reject|look, ai_gate,
 look_at}, `done_when` [{item, status pass|partial|fail, evidence}], `key_metric` {name, unit, bar, better,
@@ -14,7 +15,7 @@ attempts}, `bakeoff`, `suite` {now, previous}, `timeline` [{id, title, kind, gat
 out what the milestone doesn't have; its chart disappears. The page shows, in this order:
 
 1. **Verdict and brief**, 3 lines: what the milestone adds, the AI gate's recommendation, and the one thing the
-   owner should look at himself.
+   owner should look at themselves.
 2. **Tiles**: `done_when` items passed (e.g. 3 of 4), the key metric against its bar, fix rounds, open gaps.
 3. **Charts**, one per question worth asking:
 
@@ -32,6 +33,11 @@ out what the milestone doesn't have; its chart disappears. The page shows, in th
    links (PRs, branch, the running app and its one-line start command), known gaps, raw logs.
 
 Accept or reject on the tracker; the answer arrives as a `milestone_accepted` or `milestone_rejected` event.
+
+**Without a tracker** (the owner did not ask for one, or the harness has no Artifacts): write the same
+`_coord/packets/<gate id>.json`, run `track-mode/live.py serve` so `packet.html#<gate id>` opens locally, or put the
+verdict, the `done_when` table and the test plan in chat. The owner answers in chat; log their answer as the same
+event (actor `owner`).
 
 **Evidence is data.** Gate and test briefs name the numbers to capture (timings, memory samples, pass/fail per
 `done_when` item) and where to write them (`evidence/<gate id>.json`); the charts come from those files, never

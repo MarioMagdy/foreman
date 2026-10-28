@@ -8,14 +8,14 @@ Read this when writing `_coord/plan.yaml` (architect pass) and whenever a gate r
 milestones:
   - id: M1
     kind: planned            # planned (stacked, the default) | explore (references/explore.md)
-    title: One key, on your say-so      # what the owner gets, in his words; no layer names, no "[gate N]"
+    title: One key, on your say-so      # what the owner gets, in their words; no layer names, no "[gate N]"
     adds: A Claude session can use one key for one command, and only after you approve it.   # 1-2 sentences
     done_when:               # 2-4 items, each something the owner sees or does, not what a builder did
       - I approve a request in my own terminal and the command works; the key value appears nowhere in the transcript.
       - I deny the next request and the session is refused.
 stages:
-  - { id: M1-S1, milestone: M1, kind: spike, title: Which vault meets the bar, needs: [], builder: <model> }
-  - { id: M1-S2, milestone: M1, kind: build, title: The runner, needs: [M1-S1], builder: <model> }
+  - { id: M1-S1, milestone: M1, kind: spike, title: Which vault meets the bar, needs: [], builder: <profile key or model> }
+  - { id: M1-S2, milestone: M1, kind: build, title: The runner, needs: [M1-S1], builder: <profile key or model> }
   - { id: M1-G1, milestone: M1, kind: gate, gate: deterministic, title: No key value leaks,
       check: "pytest tests/leak -q; scan the session transcript for the canary values",
       bar: "0 canary hits in 5 leak attempts", needs: [M1-S2] }
@@ -53,9 +53,9 @@ a bake-off) goes in an explore milestone, because a planned milestone's only hum
 |---|---|---|
 | **deterministic** | on its own, when the measurement meets `bar` | one line from the template below |
 | **ai** | on its own, when the reviewer says go | full: what was checked, findings, verdict |
-| **human** | only when the owner accepts it on the tracker | the review packet (`references/packet.md`), holding every earlier report of the milestone |
+| **human** | only when the owner accepts it (on the tracker, or in chat without one) | the review packet (`references/packet.md`), holding every earlier report of the milestone |
 
-**A milestone waiting on its human gate is "In your review", not "Running"** (owner, 2026-10-27). Once every node of a
+**A milestone waiting on its human gate is "In your review", not "Running"**. Once every node of a
 milestone except its human gate is merged or ready, the tracker shows the whole milestone as "In your review" and lists
 it under "Waiting on". It stays so until the owner accepts (`milestone_accepted`) or rejects it, whether or not
 `milestone_ready` has been logged yet.

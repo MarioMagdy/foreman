@@ -19,10 +19,11 @@ files other tracks own: `<paths>`.
 
 ## How you run it
 1. **Dispatch every stage whose inputs are ready, now**, through the worker launcher
-   (`track-mode/LAUNCHER.md`). An input is ready when the stage it comes from has passed its gate.
+   (`track-mode/LAUNCHER.md`; where it does not run, as the orchestrator's harness file says). An input is ready when the stage it comes from has passed its gate.
    The launcher queues for the shared slots; you don't ask anyone for a
    slot and you never start `opencode run` yourself. A Claude worker named in the profile (e.g. a
-   fallback) is started by you with the Agent tool; log its events yourself.
+   fallback) is started as your harness file says (the Agent tool in Claude Code); if you have no way to start
+   it yourself, send the orchestrator a `staff_request` naming the stage and the worker. Log its events yourself.
    **Provisional start:** if a needed stage is built but not yet gated, and the interface you use
    from it is frozen (in `contracts/` or its committed signature), start the dependent stage now as
    provisional. Fill its `provisional on` column in `tracks/<id>.md`, say so in its `brief` event,

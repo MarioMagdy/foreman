@@ -1,11 +1,23 @@
 # Worker launcher
 
-**Status: built and tested** (`launcher.py`, stdlib Python; self-check `test_launcher.py`). Real
+**Status: built and tested** (`launcher.py`, stdlib Python; self-check `test_launcher.py` in the repo, not installed). Real
 smoke run on 2026-10-11: 3 Step-5 jobs on 2 slots; the third queued until a slot freed; all three
 wrote their files and handed back `STATUS: DONE`; 0 `database is locked`; the pool outlived the shell
 that started it.
 
-The launcher is the only way a builder, reviewer or tester starts in a track-mode run. It owns the
+**Needs:** Windows, Python 3.10+, and the `opencode` CLI signed in (found on PATH, or set `FOREMAN_OPENCODE`). It
+drives opencode workers only; on another OS or harness, start workers your own way and write the same events.
+
+**Files a worker uses** (in its worktree's `_scratch/`; the `delegation` skill sets them up when installed, otherwise
+put these three lines in every brief):
+- `PROGRESS.md`: append one line after each step. The launcher reads its time as a heartbeat: no activity for
+  max(2 x `--expect`, `--hang-min`) minutes marks the job hung.
+- `MAILBOX.md`: read it after each step and follow any new line. `launcher.py soft <job>` appends the soft stop here.
+- `HANDOFF.md`: on a soft stop, write what is done, what is left, how to continue and the test status, then end
+  with the STATUS block.
+
+Where it runs (Windows, opencode workers), the launcher is the only way a builder, reviewer or tester starts in a
+track-mode run. It owns the
 shared resources so managers never coordinate them by hand.
 
 ## Commands
@@ -64,7 +76,8 @@ model runs it next is the manager's call**, following the profile's fallback cha
 
 ## Not handled
 - Two jobs editing one worktree: parallel stages need separate worktrees (the manager's job).
-- Claude workers (e.g. a Sonnet fallback) are started by the manager with the Agent tool; the
+- Claude workers (e.g. a Sonnet fallback) are started by the manager as its harness file says (the Agent tool in
+  Claude Code; a manager without one asks the orchestrator with a `staff_request`); the
   manager logs their `brief`/`handback` events itself.
-- Runs on other machines or cloud sessions. ponytail: local pool only; a `session`/`cloud`
+- Runs on other machines or cloud sessions: local pool only; a `session`/`cloud`
   launcher is a second implementation of the same commands, written when the first remote run needs it.

@@ -1,16 +1,18 @@
 # Default profile: approved once by the owner, copied into each run as _coord/profile.yaml.
 # Fallbacks listed here are PRE-APPROVED: a dead, hung or rate-limited worker is replaced along its
 # chain without asking the owner again. Fallbacks are for failures, never to skip a queue.
-# Re-check every model name live before a run (`opencode models`, the Agent tool's model list).
+# Re-check every model name live before a run (`opencode models`, your harness's model list).
+# EXAMPLE: every <...> is yours to fill (or put your routing in LOCAL.md). Names are version-suffixed, except where
+# the harness only takes aliases (Claude Code subagents: sonnet, opus, haiku).
 
-orchestrator: { model: opus-5.5, note: "the owner's session" }
-advisor:      { model: fable-5.1 }
-manager:      { model: opus-5.5, effort: medium, fallback: [ { model: opus-5.5, effort: high } ] }
+orchestrator: { model: <your strongest session model>, note: "the owner's session" }
+advisor:      { model: <deepest thinker available> }
+manager:      { model: <strong model>, effort: medium, fallback: [ { model: <same model>, effort: high } ] }
 
-builders:
-  step-5:   { model: opencode/step-5-preview-free,      fallback: [ opencode-go/deepseek-v4.1-flash, sonnet-5.5 ] }
-  deepseek: { model: opencode-go/deepseek-v4.1-flash,   fallback: [ sonnet-5.5 ] }
-reviewer:   { model: opencode-go/mimo-v2.6-pro,          fallback: [ sonnet-5.5 ] }
+builders:                  # one entry per builder you route to; the key is what plan.yaml `builder:` names
+  fast:     { model: "<cheap fast builder, e.g. an opencode model>", fallback: [ <second builder>, <session model> ] }
+  careful:  { model: <stronger builder>,                         fallback: [ <session model> ] }
+reviewer:   { model: <reviewer that did not build the stage>,    fallback: [ <session model> ] }
 
 workers:
   opencode_slots: 3        # through the launcher's single `opencode serve`; tested up to 5

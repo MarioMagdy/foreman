@@ -1,119 +1,131 @@
 # foreman
 
-A Claude Code skill for running an agreed plan through delegated AI agents while the owner stays in charge.
+An agent skill for running an agreed plan through delegated AI agents while you stay in charge.
+
 The foreman splits the plan into milestones and stages, routes each stage to the right worker, checks every
-piece itself, keeps a live progress dashboard, and hands the owner something he can actually run: a test plan
-per milestone. It never builds the code itself, and nothing merges without the owner's word.
+piece itself, and hands you something you can try: a test plan, and at each milestone a review packet. It never
+writes the product code, and nothing reaches your base branch without your word.
+
+Written for Claude Code; it also runs under codex, opencode and Gemini CLIs with the fallbacks below.
+
+## See it first
+
+```
+python -m pip install pyyaml    # for the same python you run the scripts with
+python track-mode/live.py serve --coord track-mode/sample-run/_coord
+```
+
+Open the printed `http://127.0.0.1:8765/`. That is the live tracker drawn from a recorded sample run: milestones,
+the stage map, managers and their agents, open questions. Open `dashboard/packet.html` in a browser for the
+review packet with its built-in sample.
 
 ## Install
 
-Copy this folder to `~/.claude/skills/foreman/` (the files that matter at run time are `SKILL.md`,
-`defaults.yaml`, `dashboard/`, and optionally your own `LOCAL.md`). It loads at the next session start and
-triggers on requests like "take this plan and build it", "orchestrate this", "run it overnight", "where is the
-work?", or "give me a test plan".
-
-**Requirements**
-
-- Claude Code with the Agent tool (subagents). That alone is enough to run the whole flow with Claude models.
-- `git` and, for stage PRs, the GitHub CLI (`gh`) signed in.
-- Optional: other coding-agent CLIs (opencode, Codex, Gemini) if you want to route stages to other models.
-- Optional, for the dashboard: a claude.ai account where Artifacts with runtime capabilities (`db`, `user`) are
-  available, and the Artifact / ArtifactData tools in Claude Code.
-
-## The flow
-
 ```
-PLAN ──► MILESTONE 1 ──► MILESTONE 2 ──► ...        each milestone = one PR, stacked
-           ├── stage 1.1                             each stage = one real PR into its milestone
-           ├── stage 1.2
-           └── stage 1.3
+python install.py                      # Claude Code -> ~/.claude/skills/foreman
+python install.py --harness agents     # codex, opencode -> ~/.agents/skills/foreman
+python install.py --harness all        # both
+python install.py --dest <dir>         # any other harness: the folder that will hold SKILL.md
 ```
 
-1. **Run sheet.** The foreman reads the plan, copies `defaults.yaml`, fills it in for the job (arrangement,
-   branching, gates, workers, reviewers, environment) and **stops until the owner says yes**.
-2. **Plan files.** A master `PLAN.md` plus one `M<n>_PLAN.md` per milestone. Each stage section in the
-   milestone file is a copy-paste brief: goal, exact files, steps, and numbered success criteria.
-3. **Stage loop.** Dispatch one worker with the brief → verify from git and by running things (never trust the
-   worker's report) → gate (self-review, a tester, or a council, by size) → review findings go on the PR as a
-   comment → a fix round is a new brief carrying the foreman's **rulings** (the smallest mechanism that closes
-   each finding) → re-review → stage PR marked *ready*, not merged.
-4. **Test plan.** A milestone is done when the owner can sit down and try it. `TEST_PLAN_M<n>.md`: where the
-   work is, what changed, numbered steps with expected results, a cost label on every step
-   (`free` / `paid (~$X)` / `do-not-run`), which steps write to which database, and known gaps. The foreman
-   runs the whole plan itself first.
-5. **Merge** only on the owner's explicit word, stage by stage and milestone by milestone.
+It copies only the files a session uses (not tests or the sample run), never touches your `LOCAL.md`, and re-running
+it updates the install. Start a new session afterwards.
 
-Every brief, review and report lives in one run folder per milestone,
-`_runs/<YYYY-MM-DD>-M<n>/{briefs,reports,evidence}`, which is never committed.
+It triggers on requests like "take this plan and build it", "foreman init", "orchestrate this", "run it
+overnight", "where is the work?" or "give me a test plan".
 
-## Agents and how they are managed
+Optional: copy `LOCAL.md.example` to `LOCAL.md` beside `SKILL.md` and put your own worker routing, accounts (env
+var names only) and house rules there. The skill reads it first. It is gitignored.
 
-| Role | What it does | Typical routing |
+### Requirements
+
+| For | You need |
+|---|---|
+| The skill itself | an agent harness that can start subagents or other agent CLIs; `git` |
+| Stage and milestone PRs | the GitHub CLI (`gh`), signed in |
+| `evals/plan_check.py`, `track-mode/live.py` | Python 3.9+ (tested on 3.12) and PyYAML |
+| `track-mode/launcher.py` (worker pool for long runs) | **Windows**, and the `opencode` CLI signed in. It drives opencode workers only. |
+| The phone-friendly tracker and answering questions on the page | Claude Code with claude.ai Artifacts (`dashboard/SCHEMA.md`) |
+
+## How a run goes
+
+```
+PLAN ──► MILESTONE 1 ──► MILESTONE 2 ──► ...        each milestone = one PR you review, stacked
+           ├── stage M1-S1                           each stage = one PR into its milestone
+           ├── stage M1-S2
+           ├── gate  M1-G1  (AI review)
+           └── gate  M1-G2  (your review)
+```
+
+1. **`foreman init`.** It reads your plan, does an architect pass (critical path, parallel tracks, who builds
+   what), writes a run sheet from `defaults.yaml`, `_coord/plan.yaml`, `PLAN.md` and one `M<n>_PLAN.md` per
+   milestone, asks its setup questions in one batch, and **stops until you say yes**. Say "init and start" to
+   skip only that wait.
+2. **Milestones are working slices**: each one is a feature you can use end to end, with `adds` and `done_when`
+   in your words. Uncertain work goes into an *explore* milestone off to the side (`references/explore.md`).
+3. **Stage loop.** One worker per stage, from a copy-paste brief → the foreman verifies from git and by running
+   things (never from the worker's report) → stage review, findings posted on the PR → a fix round is a new
+   brief carrying the foreman's rulings → once the gate passes, the stage merges into its milestone branch.
+4. **Gates.** Each milestone ends with an AI gate, then your gate (`references/gates.md`). At your gate you get a
+   review packet (`references/packet.md`) and a test plan whose every step is labelled `free`, `paid (~$X)` or
+   `do-not-run`. The foreman runs the whole test plan itself first.
+5. **You merge milestones.** The foreman never merges a milestone or touches the base branch on its own judgment,
+   and never writes to production without your say-so, every time.
+
+Long runs with several parallel tracks switch to **track mode**: the session becomes an orchestrator, each track
+gets a manager, and workers start through the launcher (`track-mode/CHARTER.md`, `track-mode/LAUNCHER.md`).
+Every hand-off is one JSON line in `_coord/events/`, which is what the live view draws.
+
+## One core, one file per harness
+
+`SKILL.md` holds every rule and names no harness tool. Seven steps depend on the harness: starting a worker or
+manager, waking when a job hands back, scheduled check-ins, showing you the run, taking your answers, resuming a
+manager and sending you updates, and naming models. The skill reads one file for those:
+
+| File | For | How it does the seven |
 |---|---|---|
-| Foreman | Splits the work, writes briefs, verifies, gates, writes test plans, keeps the dashboard. Never writes product code. | The Claude Code session you talk to |
-| Workers | Build one stage each from a brief. | Routed by the brain the stage needs: UI, fully specified work, bulk edits, hard thinking |
-| Advisor | Consulted before the stage split is locked and before any contract others build on. | The deepest thinker you have |
-| Reviewers / judges | Gate a stage or a milestone; write findings with evidence. | Per gate type in the run sheet; `council-judge` panel for large gates |
-| Tester | Executes the project's own test skill against the running app. | A subagent with a browser |
+| `harness/claude-code.md` | Claude Code | subagents, Monitor, scheduled check-ins, the tracker as a claude.ai Artifact you can answer on |
+| `harness/generic.md` | everything else | separate agent CLI runs, polling between steps, `live.py serve`, answers in chat or `questions.md` |
 
-How they are managed:
+On other harnesses the run moves only while a session is open. A native file for another harness (say codex) is
+one more page in `harness/` holding the same seven steps; the rules never move out of `SKILL.md`.
 
-- **Routing is in the run sheet** and is the owner's call. Every model name is version-suffixed and checked
-  live. Where a row offers alternatives, the foreman says which it picked and why. Reviewer routing may change
-  mid-run; the change is written to the run sheet and logged on the dashboard.
-- **Briefs** are written with `subagent-discipline`: plan excerpt, exact files, the acceptance check the worker
-  runs, the project's standing rules, "do not commit unless told", and "if anything deviates, stop and report".
-- **Verification is never delegated.** The foreman reads `git status`/`git log`/the diff, re-runs the success
-  criteria, and runs the app. Workers report false successes and false failures.
-- **Grading.** After each run the worker gets an evidence-based scorecard (`subagent-discipline`), so routing
-  improves with a track record instead of intuition.
-- **Limits.** At most two heavy agents at once; a blocked stage stops that stage, not the run.
+## Companion skills (optional)
 
-## The dashboard
-
-`dashboard/tracker.html` is a ready template for a live progress page. Publish it once as a claude.ai Artifact
-with the `db` and `user` capabilities, seed it from the run sheet, and the foreman updates it at every stage
-transition and every build / review / fix round.
-
-![Tracker overview with sample data](docs/tracker-overview.png)
-
-- Milestones as sections with a progress bar; stages inside them with status colours; a dependency graph; the
-  current focus and what is waiting on the owner in the header; an overall activity log.
-- **Click any milestone or stage** for a detail panel: its fields, its iterations (build r1, review r1 NO-GO,
-  fix r2, review r2 GO, with links to the PR comments), and its own log.
-- **Added after planning** stages and milestones get a distinct colour and an `added` label, with the reason.
-- **Add in between from the page:** "+ add stage here" between stages, "+ add milestone" between milestones,
-  "Add note" in a detail panel. Each is a short form plus a review step; nothing is written until Save.
-- Works at phone width, in light and dark themes, and by keyboard. Opened outside claude.ai it offers
-  **Show sample data** (or open `tracker.html?demo` locally).
-
-<img src="docs/tracker-stage-detail.png" alt="Stage detail panel showing iterations" width="320">
-
-The data contract, every write the foreman makes, and the publish recipe are in
-[`dashboard/SCHEMA.md`](dashboard/SCHEMA.md). [`dashboard/seed-example.json`](dashboard/seed-example.json) is a
-working seed (two milestones, five stages, a NO-GO review and its fix round, one added stage).
-
-## Related skills
-
-The foreman calls these when they are installed and does their job by hand when they are not:
+The foreman uses these when they are installed and does their job by hand when they are not. They are separate
+skills, not part of this repo.
 
 | Skill | Used for | Without it |
 |---|---|---|
-| `subagent-discipline` | Every brief and every post-run scorecard | Write the brief to the checklist above; note the worker's performance in the run folder |
-| `council-judge` | Multi-judge gates for large stages and milestones | One reviewer subagent at max effort, findings with evidence |
-| `verified-pr` | PR mechanics and review-gated pushes | Plain `gh pr create`, findings as a PR comment |
-| The project's test skill | What the tester executes | The tester follows the test plan by hand |
+| `delegation` | Preparing each worker's worktree, its mailbox and progress files, soft and hard stops | `git worktree add` per stage; three `_scratch/` files described in `track-mode/LAUNCHER.md` |
+| `subagent-discipline` | Writing briefs and grading each worker afterwards | Briefs follow `SKILL.md`; a few lines per worker in the run's `reports/` |
+| `council-judge` | Multi-model review for large gates | One strong reviewer that did not build the stage |
+| `verified-pr` | PR mechanics | Plain `gh pr create`, findings as a PR comment |
 
 ## Files
 
-| File | Purpose |
+| Path | What it is |
 |---|---|
-| `SKILL.md` | The skill itself: rules, flow, red flags. This is what loads into a session. |
-| `defaults.yaml` | The run-sheet template, generic. |
-| `dashboard/tracker.html` | Progress page template. |
-| `dashboard/SCHEMA.md` | Tracker data contract, foreman writes, publish recipe. |
-| `dashboard/seed-example.json` | Sample seed batch. |
-| `LOCAL.md.example` | Shape of the optional per-owner overlay (routing, accounts, paths). Copy to `LOCAL.md`. |
+| `SKILL.md` | The skill: rules, flow, red flags. This is what loads into a session. |
+| `harness/` | How the seven harness-dependent steps work in Claude Code, and everywhere else. |
+| `install.py` | Copies the run-time files into a harness's skills folder. |
+| `defaults.yaml` | The run-sheet template. |
+| `profiles/default.yaml` | Example model routing with pre-approved fallbacks; fill in your own. |
+| `references/` | Read on demand: gates and plan shape, explore milestones, the review packet. |
+| `dashboard/` | `tracker.html` (live tracker), `packet.html` (review packet), `SCHEMA.md` (data contract and Artifact recipe), `seed-example.json`. |
+| `track-mode/` | `live.py` (builds and serves the tracker data), `launcher.py` (worker pool), `CHARTER.md`, `LAUNCHER.md`, `usage_split.py` (Claude Code usage per session), `sample-run/`. |
+| `evals/` | `plan_check.py` (checks a `plan.yaml`), `scenarios.py` (scripted gate scenarios), `study.py` (compare skill versions), rehearsal notes. |
+| `LOCAL.md.example` | Shape of your private overlay. |
+
+## Tests
+
+```
+python track-mode/test_live.py
+python track-mode/test_launcher.py     # Windows only
+python evals/scenarios.py selftest
+python evals/plan_check.py track-mode/sample-run/_coord/plan.yaml
+python install.py selftest
+```
 
 ## License
 

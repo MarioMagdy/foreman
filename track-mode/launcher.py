@@ -1,6 +1,6 @@
 """Foreman worker launcher: one `opencode serve` per run, a slot pool, and hand-off events.
 
-Contract: track-mode/LAUNCHER.md. Stdlib only, Windows-first.
+Contract: track-mode/LAUNCHER.md. Stdlib only. Windows only; drives opencode workers only.
 
     python launcher.py --coord <_coord dir> start [--port 4300] [--slots 3] [--db <opencode db>]
     python launcher.py --coord D submit --stage M2a --role builder --model opencode/step-5-preview-free \
@@ -383,6 +383,9 @@ def cli():
     sub.add_parser("health")
     sub.add_parser("stop")
     a = ap.parse_args()
+    if sys.platform != "win32":  # Windows process calls only; a POSIX port needs alive()/kill() via os
+        sys.exit("launcher.py runs on Windows only (it uses kernel32 and taskkill). Elsewhere, start workers with your "
+                 "harness's own subagents or CLIs and write the events by hand (harness/generic.md).")
     if not a.coord:
         ap.error("--coord or FOREMAN_COORD is required")
     c = Coord(a.coord)

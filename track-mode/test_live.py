@@ -23,7 +23,7 @@ live.add_ms(ms, {"id": "M1", "title": "restated", "needs": ["M0"]})
 live.add_ms(ms, {"id": "M2", "needs": None})
 assert ms == [{"id": "M1", "needs": ["M0"]}, {"id": "M2", "needs": None}], ms
 
-# owner 2026-10-27: every node but the human gate done -> the milestone is in the owner's review, not running
+# every node but the human gate done -> the milestone is in the owner's review, not running
 g = lambda m, sid, st, kind="build", gate=None: {"sid": sid, "milestone": m, "status": st, "kind": kind, "gate": gate}
 stg = [g("A", "A-S1", "merged"), g("A", "A-G2", "merged", "gate", "ai"), g("A", "A-G3", "planned", "gate", "human"),
        g("B", "B-S1", "running"), g("B", "B-G3", "planned", "gate", "human"),
@@ -36,4 +36,45 @@ assert got == {"A", "E"}, got   # B still running; C accepted; D has no human ga
 old = [g("O", "O-S1", "merged"), g("O", "O-G3", "planned", "gate", "human")]
 assert live.awaiting_owner([{"id": "O"}, {"id": "N", "needs": ["O"], "status": "merged"}], old) == set()
 assert live.merged_milestones([{"id": "O"}, {"id": "N", "needs": ["O"], "status": "merged"}], old) == {"O", "N"}
+
+# the shipped sample run passes plan_check, and serve hands out review packets but nothing outside packets/
+import shutil, socket, subprocess, tempfile, time, urllib.error, urllib.request  # noqa: E402
+here = os.path.dirname(os.path.abspath(__file__))
+sample = os.path.join(here, "sample-run", "_coord")
+r = subprocess.run([sys.executable, os.path.join(here, "..", "evals", "plan_check.py"), os.path.join(sample, "plan.yaml")],
+                   capture_output=True, text=True)
+assert r.returncode == 0 and "8/8 passed" in r.stdout, r.stdout
+coord = os.path.join(tempfile.mkdtemp(), "_coord")
+shutil.copytree(sample, coord)
+os.makedirs(os.path.join(coord, "packets"))
+with open(os.path.join(coord, "packets", "M1-G2.json"), "w") as f:
+    f.write('{"gate": "M1-G2"}')
+with socket.socket() as so:
+    so.bind(("127.0.0.1", 0))
+    port = so.getsockname()[1]
+srv = subprocess.Popen([sys.executable, os.path.join(here, "live.py"), "serve", "--coord", coord, "--port", str(port)])
+try:
+    get = lambda path: urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=5).read().decode()
+    for _ in range(50):
+        try:
+            get("/run.json")
+            break
+        except OSError:
+            time.sleep(0.2)
+    assert '"gate": "M1-G2"' in get("/packets/M1-G2.json")
+    assert "packets/" in get("/packet.html")
+    for bad in ("/packets/missing.json", "/packets/..%2fplan.yaml", "/packets/../plan.yaml", "/packets/..%5cplan.yaml"):
+        try:
+            assert "Written by the orchestrator" not in get(bad), bad  # plan.yaml's first line
+        except urllib.error.HTTPError as e:
+            assert e.code == 404, (bad, e.code)
+finally:
+    srv.kill()
+out = tempfile.mkdtemp()
+subprocess.run([sys.executable, os.path.join(here, "live.py"), "build", "--coord", coord, "--out", out], check=True,
+               capture_output=True)
+assert os.path.isfile(os.path.join(out, "packet.html")) and os.path.isfile(os.path.join(out, "packets", "M1-G2.json"))
+import yaml  # noqa: E402  the shipped templates stay valid YAML
+for t in ("defaults.yaml", os.path.join("profiles", "default.yaml")):
+    yaml.safe_load(open(os.path.join(here, "..", t), encoding="utf-8"))
 print("test_live OK")

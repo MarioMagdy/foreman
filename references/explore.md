@@ -1,7 +1,7 @@
 # Explore milestones
 
-Read this when the work is uncertain: the owner wants to try options, iterate on what he finds, run a bake-off,
-or apply a batch of his test feedback.
+Read this when the work is uncertain: the owner wants to try options, iterate on what they find, run a bake-off,
+or apply a batch of their test feedback.
 
 A planned milestone is a fixed slice stacked on the one before it. An explore milestone is open-ended and sits to
 the side:
@@ -12,15 +12,15 @@ the side:
 - **Nothing in a planned milestone `needs` a stage of an explore milestone.** When the stack needs something from
   it, the owner promotes that piece: it becomes a stage of a planned milestone.
 - Spikes and bake-off losers never merge. A bake-off is several prototypes of one idea, rated blind; the owner
-  rates first and his scores stay sealed.
+  rates first and their scores stay sealed until the other ratings are in.
 - It grows as the owner tests: new stages carry `origin: added`. When the base branch moves, merging the base
   into the explore branch is a stage of its own, so the final merge is not a fight.
-- It reaches the base only on the owner's explicit word, after its human gate. He can ask for its review packet
+- It reaches the base only on the owner's explicit word, after its human gate. They can ask for its review packet
   at any time, not only at the end.
 - Its `done_when` says what the owner will have decided or seen by the end ("I picked a vault from measured
   results"), not a feature list.
 
-## Feedback batches (was "polish sprint", owner 2026-10-19)
+## Feedback batches
 
 When the owner's test feedback arrives, do not bolt the fixes onto the feature milestones: open an explore
 milestone for them, finish it, then go on with the plan.

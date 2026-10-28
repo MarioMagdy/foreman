@@ -8,15 +8,19 @@ The page never changes: put tracker.html and run.json side by side (publish the 
 the claude.ai copy, republish with the new run.json. run.json is plain data and may be edited by hand.
 
 Reads plan.yaml (milestones and stages, written in the architect pass), events/*.jsonl, launcher/,
-staffing.yaml, tracks/*.md and questions.md. Nothing secret goes in: no server password (the launcher
-never writes one), no worktree paths, and artifact paths are made relative to the run.
+staffing.yaml, tracks/*.md and questions.md. Left out: the launcher's server password (never written to
+disk) and worktree paths; artifact paths are made relative to the run. Event summaries, track files and questions
+go in as written, so keep secrets out of them and read run.json before you publish it anywhere.
+Review packets: `build` also copies dashboard/packet.html and <coord>/packets/*.json beside run.json; `serve`
+serves them at /packet.html and /packets/<gate id>.json.
 """
-import argparse, datetime, glob, html, http.server, json, os, re, sys
+import argparse, datetime, glob, html, http.server, json, os, re, shutil, sys
 
 import yaml  # PyYAML: plan.yaml and staffing.yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TRACKER = os.path.join(HERE, "..", "dashboard", "tracker.html")
+PACKET = os.path.join(HERE, "..", "dashboard", "packet.html")
 KEEP = ("ts", "actor", "to", "kind", "ref", "summary", "artifact", "job", "worker_status", "cost", "tokens", "secs",
         "verdict", "state", "provisional_on", "qid", "reason", "options", "recommended")
 STATES = {"planned", "briefed", "running", "verifying", "review", "fixing", "ready", "merged", "blocked"}
@@ -486,15 +490,32 @@ def main():
             json.dump(st, f, indent=1)
         with open(os.path.join(os.path.dirname(out), "tracker.html"), "w", encoding="utf-8") as f:
             f.write(titled(st["meta"]["project"]))  # publish this copy, with run.json beside it
+        shutil.copy(PACKET, os.path.dirname(out))  # review packets: packet.html + packets/<gate id>.json
+        for p in glob.glob(os.path.join(a.coord, "packets", "*.json")):
+            os.makedirs(os.path.join(os.path.dirname(out), "packets"), exist_ok=True)
+            shutil.copy(p, os.path.join(os.path.dirname(out), "packets"))
         return print(out)
 
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            js = self.path.split("?")[0].endswith("/run.json")
+            path = self.path.split("?")[0].split("#")[0]
+            js = path.endswith("/run.json")
+            if path == "/packet.html":
+                return self.send(open(PACKET, "rb").read(), "text/html; charset=utf-8")
+            m = re.fullmatch(r"/packets/([\w.-]+\.json)", path)  # a bare file name only: no way out of packets/
+            if m:
+                f = os.path.join(a.coord, "packets", m.group(1))
+                if not os.path.isfile(f):
+                    self.send_response(404)
+                    return self.end_headers()
+                return self.send(open(f, "rb").read(), "application/json")
             st = state(a.coord)
-            body = (json.dumps(st) if js else page(st["meta"]["project"])).encode()
+            self.send((json.dumps(st) if js else page(st["meta"]["project"])).encode(),
+                      "application/json" if js else "text/html; charset=utf-8")
+
+        def send(self, body, ctype):
             self.send_response(200)
-            self.send_header("Content-Type", "application/json" if js else "text/html; charset=utf-8")
+            self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(body)

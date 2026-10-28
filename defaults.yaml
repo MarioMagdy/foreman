@@ -1,4 +1,4 @@
-# foreman run sheet — copy, fill in for the job, show the owner, WAIT for a yes (unless he said "init and start").
+# foreman run sheet — copy to _runs/<run>/run-sheet.md, fill in for the job, show the owner, WAIT for a yes (unless they said "init and start").
 # Every value here is a default to be overridden, not a decision already made.
 
 plan: <path to the agreed plan>
@@ -19,7 +19,7 @@ events: _runs/<run>/_coord/events/              # one JSONL file per actor, one 
 plan_data: _runs/<run>/_coord/plan.yaml         # milestones + stages (needs, builder, track) for the live view
 plan_files: [PLAN.md, M<n>_PLAN.md per milestone]   # each with a copy-paste brief per stage (SKILL.md "Plan files")
 restart:
-  check_in: every <30-60> min (CronCreate, created at start, deleted at the end)
+  check_in: every <30-60> min, created at start, removed at the end (how - your harness file)
   rebuild_from: _runs/<run>/_coord/             # tracks/<id>.md + events + staffing.yaml
 standing_orders:                                # decisions made up front, with defaults and a named decider
   - { question: <...>, default: <...>, decider: <owner | orchestrator | manager> }
@@ -32,7 +32,7 @@ branching:
   base: main                       # ask once if the repo has a dev branch, else main
   milestone_branches: stacked      # each milestone branches off the previous
   stage_branches: stacked          # each stage branches off the previous, PR into the milestone
-  stage_prs: real                  # real GitHub PRs, so judge findings stay readable after merge
+  stage_prs: real                  # real GitHub PRs, so judge findings stay readable after merge | local (no remote: branches + merges only)
   merge_policy:
     stages: foreman-after-gate     # a gated stage merges into its milestone branch, no need to ask
     milestones: owner-explicit-only  # the owner reviews the milestone PR, then merges it (or says to)
@@ -50,9 +50,10 @@ settings:                          # run settings; the `delegation` skill applie
                                    # integration, on the FIRST merge, not the last
   expected_minutes: {}             # per job, from your own past runs per model and task type; 1.5x = flag at the
                                    # check-in and a post-mortem question, NOT a kill
-  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md or ACTIVITY.log; or 3x expected
-  mailbox_interval_min: 2          # 1-5; agy's idle heartbeat (each one is a model call)
-  usage_stop: { dispatch: baseline+15, all: baseline+25 }   # weekly usage points; detached watchdog from the start
+  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md (or the delegation skill's ACTIVITY.log); or 3x expected
+  mailbox_interval_min: 2          # 1-5; idle heartbeat for Gemini workers run through agy (each one is a model call)
+  usage_stop: { dispatch: baseline+15, all: baseline+25 }   # weekly-usage % above the reading at start: stop new
+                                   # dispatches, then everything. Needs a way to read usage; else leave it out
 
 gates:                             # who checks a unit before it is called ready
   trivial: self-review             # foreman reads the diff and runs the tests
@@ -61,7 +62,7 @@ gates:                             # who checks a unit before it is called ready
   large:   council                 # council-judge, max effort, findings as PR comments first
   overrides: []                    # e.g. ["council on every stage"] when the owner says so
 
-workers:                           # GENERIC. The owner's own routing is filled in per job, from his
+workers:                           # GENERIC. The owner's own routing is filled in per job, from their
                                    # words first, then LOCAL.md (if present), then what is installed.
                                    # Version-suffix every name and CHECK IT LIVE; owner-named workers
                                    # win verbatim.
@@ -72,7 +73,7 @@ workers:                           # GENERIC. The owner's own routing is filled 
   advisor:   <model>               # deepest available thinker; ask BEFORE committing to an approach
   judging:   <model>               # deep reviewer for gates; council-judge panel for `large`
   claude_ok: true                  # false when Claude quota is short -> other harnesses only
-  route_by_shape:                  # 2026-10-16 post-mortem; adjust per job
+  route_by_shape:                  # from a past post-mortem; adjust per job
     read_only_audit: <fast reader, e.g. a Gemini Flash via agy>
     fix_with_rulings: <fast fixer, e.g. DeepSeek via opencode>   # also continuations and wording
     greenfield_feature: <builder>, with the tail to the fast fixer; backend and front end are separate jobs
@@ -90,7 +91,7 @@ reviewers:                         # who reviews what; may change mid-run (edit 
 heavy_lifting: <name the worker carrying the bulk, explicitly>
 max_concurrent_heavy: 2            # Windows: 0xC0000142 above this
 
-artifacts: _runs/<YYYY-MM-DD>-M<n>/{briefs,reports,evidence}   # one run folder per milestone, never committed
+artifacts: _runs/<run>/M<n>/{briefs,reports,evidence}   # <run> = <YYYY-MM-DD>-<slug>; never committed
 notify: on-milestone-ready
 owner_updates: every 1h            # from the profile; show it here so the owner confirms or changes it
 
@@ -106,4 +107,4 @@ environment:                       # fill in BEFORE building; these are the ones
   forbidden_paths: []              # trees no agent may touch
   toolchain: <pinned Python (.python-version), node version; checked before the first build>
   deployment_shape: <workers, replicas, proxies>   # a fact from the architect pass; read it before believing an audit's severity
-  worktrees: delegation/prepare_worktree.py per job (venv, deps, test data, hooks, quick test)
+  worktrees: one prepared worktree per job (venv, deps, test data, quick test); the delegation skill's prepare_worktree.py if installed

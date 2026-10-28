@@ -30,7 +30,7 @@ def ancestors(sid, by_id):
 
 def check(plan):
     """Return a list of (name, passed, detail)."""
-    # ponytail: a milestone with a `status` (merged history backfilled for the tracker) is not new work: skip it
+    # A milestone with a `status` (merged history backfilled for the tracker) is not new work: skip it
     ms = [m for m in plan.get("milestones") or [] if not m.get("status")]
     st = plan.get("stages") or []
     by_id = {s["id"]: s for s in st}
