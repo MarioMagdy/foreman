@@ -8,7 +8,7 @@ that started it.
 **Needs:** Windows, Python 3.10+, and the `opencode` CLI signed in (found on PATH, or set `FOREMAN_OPENCODE`). It
 drives opencode workers only; on another OS or harness, start workers your own way and write the same events.
 
-**Files a worker uses** (in its worktree's `_scratch/`; the `delegation` skill sets them up when installed, otherwise
+**Files a worker uses** (in its worktree's `_scratch/`; `delegation/prepare_worktree.py` sets them up, otherwise
 put these three lines in every brief):
 - `PROGRESS.md`: append one line after each step. The launcher reads its time as a heartbeat: no activity for
   max(2 x `--expect`, `--hang-min`) minutes marks the job hung.

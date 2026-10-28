@@ -38,7 +38,7 @@ branching:
     milestones: owner-explicit-only  # the owner reviews the milestone PR, then merges it (or says to)
                                    # nothing reaches the base branch on the foreman's judgment
 
-settings:                          # run settings; the `delegation` skill applies them to every worker. Copy this block
+settings:                          # run settings; references/delegation.md applies them to every worker. Copy this block
                                    # into _coord/plan.yaml `settings:` so the dashboard header shows it.
   stage_gate: full-suite           # full-suite (worker runs the whole suite, fixes its own failures) | targeted | none
   full_suite_slots: 1              # workers that may run a full suite at once on one machine (lock in _coord/locks/)
@@ -50,7 +50,7 @@ settings:                          # run settings; the `delegation` skill applie
                                    # integration, on the FIRST merge, not the last
   expected_minutes: {}             # per job, from your own past runs per model and task type; 1.5x = flag at the
                                    # check-in and a post-mortem question, NOT a kill
-  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md (or the delegation skill's ACTIVITY.log);
+  hard_stop: 15                    # minutes with no growth in _scratch/PROGRESS.md (or the hook's ACTIVITY.log);
                                    # the launcher stops a job after max(2x expected, this) (its --hang-min)
   mailbox_interval_min: 2          # 1-5; idle heartbeat for Gemini workers run through agy, the Antigravity CLI (each one is a model call)
   usage_stop: { dispatch: baseline+15, all: baseline+25 }   # weekly-usage % above the reading at start: stop new
@@ -108,4 +108,4 @@ environment:                       # fill in BEFORE building; these are the ones
   forbidden_paths: []              # trees no agent may touch
   toolchain: <pinned Python (.python-version), node version; checked before the first build>
   deployment_shape: <workers, replicas, proxies>   # a fact from the architect pass; read it before believing an audit's severity
-  worktrees: one prepared worktree per job (venv, deps, test data, quick test); the delegation skill's prepare_worktree.py if installed
+  worktrees: one prepared worktree per job (venv, deps, test data, quick test); delegation/prepare_worktree.py

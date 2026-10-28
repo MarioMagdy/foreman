@@ -35,7 +35,7 @@ STATUS = re.compile(r"^\s*STATUS:\s*(DONE|UNSURE|TOO_HARD|BLOCKED)\b.*$", re.M)
 MSG = "Your brief is the attached file. Follow it exactly, and end with the STATUS block it asks for."
 FINAL = ("done", "failed", "hung", "quota", "cancelled")
 SOFT_STOP = ("SOFT STOP: finish the step you are on (do not start a new one), commit it, write _scratch/HANDOFF.md "
-             "(what is done, what is left, how to continue, test status), then end with your STATUS block.")  # = delegation/mailbox.py
+             "(what is done, what is left, how to continue, test status), then end with your STATUS block.")  # = delegation/mailbox.py SOFT_STOP
 
 
 def now():
@@ -115,8 +115,8 @@ class Daemon:
 
     # -- plumbing
     def env(self):
-        # one skill folder for workers: without this opencode loads ~/.claude/skills AND ~/.agents/skills (duplicates,
-        # and the owner's orchestration skills); see delegation/skills.json
+        # one skill folder for workers: without this opencode loads ~/.claude/skills AND ~/.agents/skills (every skill
+        # twice, orchestration skills included); see references/delegation.md
         e = dict(os.environ, OPENCODE_SERVER_PASSWORD=self.pw, OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1")
         if self.db:
             e["OPENCODE_DB"] = self.db

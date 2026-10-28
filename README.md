@@ -44,6 +44,10 @@ overnight", "where is the work?" or "give me a test plan".
 Optional: copy `LOCAL.md.example` to `LOCAL.md` beside `SKILL.md` and put your own worker routing, accounts (env
 var names only) and house rules there. The skill reads it first. It is gitignored.
 
+**Workers inherit your environment.** Every worker Foreman starts gets the environment variables of the shell you
+started from, API keys included. Start your session from a shell that holds only the keys the workers should
+have; `delegation/prepare_worktree.py` also lists the secret-looking variable names to blank per worker.
+
 ### Requirements
 
 | For | You need |
@@ -104,7 +108,6 @@ skills, not part of this repo.
 
 | Skill | Used for | Without it |
 |---|---|---|
-| `delegation` | Preparing each worker's worktree, its mailbox and progress files, soft and hard stops | `git worktree add` per stage; three `_scratch/` files described in `track-mode/LAUNCHER.md` |
 | `subagent-discipline` | Writing briefs and grading each worker afterwards | Briefs follow `SKILL.md`; a few lines per worker in the run's `reports/` |
 | `council-judge` | Multi-model review for large gates | One strong reviewer that did not build the stage |
 | `verified-pr` | PR mechanics | Plain `gh pr create`, findings as a PR comment |
@@ -118,7 +121,8 @@ skills, not part of this repo.
 | `install.py` | Copies the run-time files into a harness's skills folder. |
 | `defaults.yaml` | The run-sheet template. |
 | `profiles/default.yaml` | Example model routing with pre-approved fallbacks; fill in your own. |
-| `references/` | Read on demand: gates and plan shape, explore milestones, the review packet. |
+| `references/` | Read on demand: gates and plan shape, explore milestones, the review packet, delegation (worker setup, mailbox, stops, handback). |
+| `delegation/` | `prepare_worktree.py` (a ready worktree plus the harness hooks per worker), `mailbox.py` (talk to a running worker, progress, hang check), `hook.py` (the hook every harness calls). |
 | `dashboard/` | `tracker.html` (live tracker), `packet.html` (review packet), `SCHEMA.md` (data contract and Artifact recipe), `seed-example.json`. |
 | `track-mode/` | `live.py` (builds and serves the tracker data), `launcher.py` (worker pool), `CHARTER.md`, `LAUNCHER.md`, `usage_split.py` (Claude Code usage per session), `sample-run/`. |
 | `evals/` | `plan_check.py` (checks a `plan.yaml`), `scenarios.py` (scripted gate scenarios), `study.py` (compare skill versions), rehearsal notes. |
@@ -133,6 +137,9 @@ python track-mode/test_launcher.py     # Windows only
 python evals/scenarios.py selftest
 python evals/plan_check.py track-mode/sample-run/_coord/plan.yaml
 python install.py selftest
+python delegation/mailbox.py selftest
+python delegation/hook.py selftest
+python delegation/prepare_worktree.py selftest
 ```
 
 ## License

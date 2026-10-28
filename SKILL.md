@@ -103,7 +103,7 @@ Filling it in:
   owner's words, then `LOCAL.md`, then what is actually installed.
 - **`settings`** (stage gate, review and human-review levels, verification depth, expected minutes, hard stop,
   mailbox interval, usage stop lines) are the owner's to change: show them, then copy the block into
-  `_coord/plan.yaml` so the dashboard header shows it (always including `human_review`). The `delegation` skill applies them to every worker when installed; without it,
+  `_coord/plan.yaml` so the dashboard header shows it (always including `human_review`). `references/delegation.md` applies them to every worker;
   paste the ones that bind a worker (stage gate, hard stop) into each brief.
 - If the owner wants a dashboard, add its URL under `dashboard:` once published.
 - **Base branch: the repo's default branch (`main`, `master`, ...) unless the owner said otherwise.** If the repo
@@ -169,14 +169,14 @@ A stage is what one worker can finish and one gate can prove. Split by:
 decomposition is locked, and before a contract other stages will build on. After the code exists,
 an advisor only gets to agree with you.
 
-Write one brief per stage. **Sub-skills, when installed:** `subagent-discipline` for the brief and for
-the post-run critique; `delegation` for everything around the worker (its prepared worktree, skills and
-permissions per role, progress file and mailbox, testing rule from `settings.stage_gate`, soft and hard stop,
-handback files). Without them, do it by hand: one worktree per stage branch (`git worktree add`, dependencies
+Write one brief per stage. Read `references/delegation.md` for everything around the worker (its prepared
+worktree, skills and permissions per role, progress file and mailbox, testing rule from `settings.stage_gate`,
+soft and hard stop, handback files; scripts in `delegation/`). `subagent-discipline`, when installed, covers the
+brief and the post-run critique. Without the scripts (another OS), do it by hand: one worktree per stage branch (`git worktree add`, dependencies
 installed, one quick test run before the brief goes out); the worker appends a line to `_scratch/PROGRESS.md`
 after each step, reads `_scratch/MAILBOX.md` after each step (a soft stop is a line there), and writes
 `_scratch/HANDOFF.md` when it stops early. `track-mode/LAUNCHER.md` relies on the same three files. The brief carries the plan excerpt, the exact files, the acceptance check
-the worker runs itself, the project's standing rules, the `delegation` brief lines (or the three file rules above), and *commit to your stage
+the worker runs itself, the project's standing rules, the brief lines from `references/delegation.md` (or the three file rules above), and *commit to your stage
 branch after each numbered step; never push*. Reviewer briefs say *put your report in your final reply*. Every
 brief ends by requiring the worker's **status block** as the last thing it writes:
 
@@ -207,7 +207,7 @@ STATUS: BLOCKED   waiting on: <stage or input>
 ## The stage loop
 
 1. **Dispatch** one worker with the brief, once every stage it needs has passed its gate, into a prepared worktree
-   (`delegation`'s `prepare_worktree.py`, or by hand as above; never a cold one). While it runs, look at
+   (`delegation/prepare_worktree.py`, or by hand as above; never a cold one). While it runs, look at
    `_scratch/PROGRESS.md`, talk through `_scratch/MAILBOX.md`, and stop softly there first
    (`launcher.py soft <job>` for launcher jobs); overrunning `expected_minutes` is a flag, not a kill. If a
    needed stage is built but not yet gated, and the interface used from it is frozen (contract or
@@ -422,7 +422,7 @@ Every run ends with `postmortems/<yyyy-mm-dd>-<slug>.md` (where: `LOCAL.md`, els
 
 ## Related skills — call them, do not reimplement
 
-`subagent-discipline` (every dispatch) · `delegation` (every worker's workspace, channels, stop and handback) ·
+`subagent-discipline` (every dispatch) ·
 `council-judge` (large gates) · `verified-pr` (PR
 mechanics) · the project's own
 test skill, which the tester **executes** rather than improvises around. If one is not installed,
