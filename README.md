@@ -19,6 +19,10 @@ Open the printed `http://127.0.0.1:8765/`. That is the live tracker drawn from a
 the stage map, managers and their agents, open questions. Open `dashboard/packet.html` in a browser for the
 review packet with its built-in sample.
 
+![The live tracker: what needs you, what is running, each milestone](docs/tracker-overview.png)
+
+![The stage map: builds, AI gates and your review gate per milestone](docs/tracker-stage-map.png)
+
 ## Install
 
 ```

@@ -32,7 +32,8 @@ out what the milestone doesn't have; its chart disappears. The page shows, in th
 5. **Folded, open on click**: the test plan (run by the foreman first), every gate report of the milestone,
    links (PRs, branch, the running app and its one-line start command), known gaps, raw logs.
 
-Accept or reject on the tracker; the answer arrives as a `milestone_accepted` or `milestone_rejected` event.
+The owner accepts or sends it back in chat (or in a comment on the tracker, where the page takes comments); the
+orchestrator logs their answer as a `milestone_accepted` or `milestone_rejected` event (actor `owner`).
 
 **Without a tracker** (the owner did not ask for one, or the harness has no Artifacts): write the same
 `_coord/packets/<gate id>.json`, run `track-mode/live.py serve` so `packet.html#<gate id>` opens locally, or put the

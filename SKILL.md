@@ -223,8 +223,7 @@ STATUS: BLOCKED   waiting on: <stage or input>
    every finding in a table (`#n - accepted | accepted, simpler mechanism | rejected - reason`), and
    the re-review judges whether each hole is *closed*, not whether it matches the first proposal.
    **A ruling on a normalizer or identity rule is not READY until a diff on real data against the base branch
-   says what it costs** (rows lost, joins gained). Twice a ruling accepted as "intended" lost real data
-   (once 462 of 1,996 real phone numbers).
+   says what it costs** (rows lost, joins gained). Twice a ruling accepted as "intended" lost real data.
 5. **Merge**: the stage PR (body carries the ticket link in whatever format the project's CI checks)
    merges into the milestone branch once its gate passes; the next stage builds on the merged milestone branch.
    When the milestone's last stage is in, run the milestone review and the test plan on the milestone branch,

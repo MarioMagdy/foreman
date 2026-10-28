@@ -53,7 +53,7 @@ a bake-off) goes in an explore milestone, because a planned milestone's only hum
 |---|---|---|
 | **deterministic** | on its own, when the measurement meets `bar` | one line from the template below |
 | **ai** | on its own, when the reviewer says go | full: what was checked, findings, verdict |
-| **human** | only when the owner accepts it (on the tracker, or in chat without one) | the review packet (`references/packet.md`), holding every earlier report of the milestone |
+| **human** | only when the owner accepts it (in chat, or a comment on the tracker) | the review packet (`references/packet.md`), holding every earlier report of the milestone |
 
 **A milestone waiting on its human gate is "In your review", not "Running"**. Once every node of a
 milestone except its human gate is merged or ready, the tracker shows the whole milestone as "In your review" and lists

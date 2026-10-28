@@ -92,7 +92,13 @@ def L(coord, *args):
 
 
 def job(coord, jid):
-    return json.load(open(os.path.join(coord, "launcher", "jobs", jid + ".json")))
+    for _ in range(20):  # the launcher may be swapping the file in (os.replace) right now on Windows
+        try:
+            with open(os.path.join(coord, "launcher", "jobs", jid + ".json")) as f:
+                return json.load(f)
+        except PermissionError:
+            time.sleep(0.05)
+    raise AssertionError(f"job file {jid} stayed locked")
 
 
 def until(pred, secs=60):
