@@ -20,11 +20,18 @@ def main():
         extra = {"ts": "2026-10-14T11:35:00Z", "actor": "orchestrator", "to": "owner", "kind": "question", "ref": "M1-S4",
                  "qid": "Q3", "summary": "Q3 needs you: keep the log window at 10 minutes or widen it?",
                  "options": ["Keep 10 minutes", "Widen it"], "recommended": "Keep 10 minutes"}
-        with open(os.path.join(run, "_coord", "events", "orchestrator.jsonl"), "a", encoding="utf-8") as f:
-            f.write(json.dumps(extra) + "\n")
         site = os.path.join(tmp, "site")
-        subprocess.run([sys.executable, os.path.join(HERE, "live.py"), "build", "--coord", os.path.join(run, "_coord"),
-                        "--out", site], check=True, stdout=subprocess.DEVNULL)
+
+        def build(folder):
+            subprocess.run([sys.executable, os.path.join(HERE, "live.py"), "build", "--coord",
+                            os.path.join(folder, "_coord"), "--out", site], check=True, stdout=subprocess.DEVNULL)
+
+        def event(e):
+            with open(os.path.join(run, "_coord", "events", "orchestrator.jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps(e) + "\n")
+            build(run)
+
+        event(extra)
         srv = subprocess.Popen([sys.executable, "-m", "http.server", PORT, "-d", site],
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1.5)
@@ -56,11 +63,37 @@ def main():
                       .get_attribute("aria-pressed") == "true")
                 b3 = pg.locator('.other[data-q="Q3"]')
                 b3.click()
-                b3.type("typing during refresh")
-                pg.wait_for_timeout(11500)
-                b3.type(" ...still here")
-                check("focus and text survive the 10 s refresh",
+                pg.keyboard.type("typing during refresh")
+                # change the run while typing, so the refresh really redraws the question list (a new Q4 appears)
+                event({"ts": "2026-10-14T11:36:00Z", "actor": "orchestrator", "to": "owner", "kind": "question",
+                       "ref": "M1-S4", "qid": "Q4", "summary": "Q4 needs you: name the export file?"})
+                pg.wait_for_selector('.other[data-q="Q4"]', timeout=15000)
+                check("focus stays in the box through a redraw",
+                      pg.evaluate("document.activeElement && document.activeElement.dataset.q") == "Q3")
+                pg.keyboard.type(" ...still here")
+                check("text survives the redraw",
                       pg.locator('.other[data-q="Q3"]').input_value() == "typing during refresh ...still here")
+                # an answered question's draft is dropped from storage
+                event({"ts": "2026-10-14T11:37:00Z", "actor": "orchestrator", "kind": "answer", "ref": "M1-S4",
+                       "qid": "Q3", "summary": "Owner: keep 10 minutes"})
+                pg.wait_for_selector('.other[data-q="Q3"]', state="detached", timeout=15000)
+                stored = pg.evaluate("Object.keys(localStorage).filter(k => k.startsWith('foreman-drafts'))"
+                                     ".map(k => localStorage.getItem(k)).join('')")
+                check("answered question's draft is dropped", "typing during refresh" not in stored and note in stored)
+                # another run served on the same port does not inherit this run's Q2 draft
+                other = os.path.join(tmp, "other-run")
+                shutil.copytree(run, other)
+                build(other)
+                pg.reload()
+                pg.wait_for_selector('.other[data-q="Q2"]', timeout=15000)
+                check("another run starts with no drafts",
+                      pg.locator('.other[data-q="Q2"]').input_value() == ""
+                      and pg.locator('.opt[data-q="Q2"][data-v="Skip C1 in report v1"]').get_attribute("aria-pressed") != "true")
+                # unreadable storage does not break the page
+                pg.evaluate("Object.keys(localStorage).forEach(k => localStorage.setItem(k, '{\"Q2\": {\"other\": 42}}'))")
+                pg.reload()
+                pg.wait_for_selector('.other[data-q="Q2"]', timeout=15000)
+                check("bad stored drafts are ignored", pg.locator('.other[data-q="Q2"]').input_value() == "")
                 b.close()
         finally:
             srv.terminate()

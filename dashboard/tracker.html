@@ -773,6 +773,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     $("team").textContent = `${live ? `${live} manager${live > 1 ? "s" : ""}` : "Single mode"} · ${busy}/${run.pool && run.pool.slots || "?"} worker slots busy` +
       `${queued ? ` · ${queued} queued` : ""}${run.pool && run.pool.stopped ? " · launcher stopped" : ""} ›`;
     const items = run.attention || [];
+    useDrafts();
     const warn = (run.warnings || []).map(w => ({ type: "blocked", ref: "", text: w }));
     $("attn").hidden = !items.length && !warn.length;
     const label = { blocked: "stuck", question: "question", staffing: "staff request" };
@@ -794,10 +795,27 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   // A question shows who raised it and every hop it took; one that now sits with the owner gets its options.
   // Picks stay in the page until "Send answers to Claude" posts them as one comment sent to the watching session.
   // Drafts (picks, notes, what was sent) live in this browser, so a reload or a republish of the page never loses them.
-  const DRAFTS = "foreman-drafts";
-  const picks = (() => { try { return JSON.parse(localStorage.getItem(DRAFTS) || "{}") || {}; } catch (e) { return {}; } })();
-  const saveDrafts = () => { try { localStorage.setItem(DRAFTS, JSON.stringify(picks)); } catch (e) { /* storage blocked: drafts last this visit */ } };
-  const sent = new Set(Object.keys(picks).filter(k => picks[k] && picks[k].sent));
+  // They are kept per run (two runs served on the same port can both have a Q2) and dropped once the question closes.
+  let picks = {}, draftKey = null;
+  const sent = new Set();
+  const saveDrafts = () => { try { if (draftKey) localStorage.setItem(draftKey, JSON.stringify(picks)); } catch (e) { /* storage blocked: drafts last this visit */ } };
+  function useDrafts() {
+    const key = "foreman-drafts:" + (meta && meta.project || "") + "|" + (meta && meta.subtitle || "");
+    if (key !== draftKey) {
+      draftKey = key; picks = {}; sent.clear();
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { /* unreadable: start empty */ }
+      for (const [id, p] of Object.entries(saved && typeof saved === "object" ? saved : {})) {
+        if (!p || typeof p !== "object") continue;
+        picks[id] = { v: typeof p.v === "string" ? p.v : "", other: typeof p.other === "string" ? p.other : "", sent: p.sent === true };
+        if (picks[id].sent) sent.add(id);
+      }
+    }
+    const open = new Set((run.attention || []).filter(a => a.type === "question").map(qidOf));
+    const gone = Object.keys(picks).filter(id => !open.has(id));
+    gone.forEach(id => { delete picks[id]; sent.delete(id); });
+    if (gone.length) saveDrafts();
+  }
   const qidOf = (a) => String(a.qid || a.ref || "");
   const who = (n) => n === "owner" ? "you" : n || "orchestrator";
   const route = (a) => [a.from].concat((a.chain || [{ to: a.to }]).map(h => h.to)).map(who).join(" → ");
