@@ -799,8 +799,10 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
   let picks = {}, draftKey = null;
   const sent = new Set();
   const saveDrafts = () => { try { if (draftKey) localStorage.setItem(draftKey, JSON.stringify(picks)); } catch (e) { /* storage blocked: drafts last this visit */ } };
+  try { localStorage.removeItem("foreman-drafts"); } catch (e) { /* an early build kept every run under this one key */ }
   function useDrafts() {
-    const key = "foreman-drafts:" + (meta && meta.project || "") + "|" + (meta && meta.subtitle || "");
+    // run.id comes from live.py (one per run folder); a page without it falls back to the run's name
+    const key = "foreman-drafts:" + (run.id || (meta && meta.project || "") + "|" + (meta && meta.subtitle || ""));
     if (key !== draftKey) {
       draftKey = key; picks = {}; sent.clear();
       let saved = {};

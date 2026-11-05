@@ -5,7 +5,7 @@ survive a reload, and the 10 s refresh does not steal focus from a box being typ
 
 Uses a temporary copy of the bundled sample run with one extra owner question (Q3); the repo's sample is not changed.
 """
-import json, os, shutil, subprocess, sys, tempfile, time
+import json, os, re, shutil, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = "8799"
@@ -64,12 +64,16 @@ def main():
                 b3 = pg.locator('.other[data-q="Q3"]')
                 b3.click()
                 pg.keyboard.type("typing during refresh")
+                pg.evaluate("document.activeElement.setSelectionRange(6, 6)")   # caret mid-text, not at the end
                 # change the run while typing, so the refresh really redraws the question list (a new Q4 appears)
                 event({"ts": "2026-10-14T11:36:00Z", "actor": "orchestrator", "to": "owner", "kind": "question",
                        "ref": "M1-S4", "qid": "Q4", "summary": "Q4 needs you: name the export file?"})
                 pg.wait_for_selector('.other[data-q="Q4"]', timeout=15000)
                 check("focus stays in the box through a redraw",
                       pg.evaluate("document.activeElement && document.activeElement.dataset.q") == "Q3")
+                check("caret stays where it was", pg.evaluate(
+                    "[document.activeElement.selectionStart, document.activeElement.selectionEnd]") == [6, 6])
+                pg.keyboard.press("End")
                 pg.keyboard.type(" ...still here")
                 check("text survives the redraw",
                       pg.locator('.other[data-q="Q3"]').input_value() == "typing during refresh ...still here")
@@ -80,8 +84,17 @@ def main():
                 stored = pg.evaluate("Object.keys(localStorage).filter(k => k.startsWith('foreman-drafts'))"
                                      ".map(k => localStorage.getItem(k)).join('')")
                 check("answered question's draft is dropped", "typing during refresh" not in stored and note in stored)
-                # another run served on the same port does not inherit this run's Q2 draft
-                other = os.path.join(tmp, "other-run")
+                # renaming the run keeps its drafts (they follow the run folder, not the title)
+                plan = os.path.join(run, "_coord", "plan.yaml")
+                text = open(plan, encoding="utf-8").read()
+                assert re.search(r"(?m)^title:", text), "sample plan has a title line"
+                open(plan, "w", encoding="utf-8").write(re.sub(r"(?m)^title:.*$", 'title: "Renamed: same run"', text, 1))
+                build(run)
+                pg.reload()
+                pg.wait_for_selector('.other[data-q="Q2"]', timeout=15000)
+                check("drafts survive renaming the run", pg.locator('.other[data-q="Q2"]').input_value() == note)
+                # another run with the same folder name, served on the same port, does not inherit this run's Q2 draft
+                other = os.path.join(tmp, "elsewhere", "run")
                 shutil.copytree(run, other)
                 build(other)
                 pg.reload()

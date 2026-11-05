@@ -14,7 +14,7 @@ go in as written, so keep secrets out of them and read run.json before you publi
 Review packets: `build` also copies dashboard/packet.html and <coord>/packets/*.json beside run.json; `serve`
 serves them at /packet.html and /packets/<gate id>.json.
 """
-import argparse, datetime, glob, html, http.server, json, os, re, shutil, sys
+import argparse, datetime, glob, hashlib, html, http.server, json, os, re, shutil, sys
 
 import yaml  # PyYAML: plan.yaml and staffing.yaml
 
@@ -427,6 +427,8 @@ def state(coord):
         "stages": list(stages.values()),
         "log": log,
         "run": {
+            # stable per run folder and never shows its path: the page keeps the owner's draft answers under it
+            "id": hashlib.sha1(os.path.abspath(coord).encode("utf-8")).hexdigest()[:12],
             "built": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "attention": sorted(attention, key=lambda a: a["at"]),
             "staffing": staffing,
