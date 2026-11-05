@@ -35,8 +35,30 @@ python install.py --harness all        # both
 python install.py --dest <dir>         # any other harness: the folder that will hold SKILL.md
 ```
 
-It copies only the files a session uses (not tests or the sample run), never touches your `LOCAL.md`, and re-running
-it updates the install. Start a new session afterwards.
+It copies only the files a session uses (not tests or the sample run), never touches your `LOCAL.md` or
+`~/.foreman/`, and re-running it updates the install. Start a new session afterwards and say **`foreman setup`**.
+
+### Setup
+
+`foreman setup` (also the first `foreman init` on a machine) walks you through one question at a time, each with a
+recommended answer: install a newer release if there is one, which companion skills you have, which agent CLIs and
+subscriptions you have (checked live), which model does which job (proposed from `scores/models.yaml`), the session
+reminder hook, and how often Foreman checks in (default every 60 minutes). Answers go to `~/.foreman/setup.yaml`.
+
+The **reminder hook** (`hooks/session_context.py`, Claude Code and Codex) runs when a session starts, resumes or is
+compacted. Only inside a repo with an active Foreman run (`_runs/ACTIVE`), it tells that run's session its run
+folder, tracker, stage states and next step, so a long run is not lost when the conversation is compacted.
+Everywhere else it prints nothing.
+
+**Model ratings:** Foreman grades every worker it checks and keeps the grades on your machine
+(`~/.foreman/local-runs.csv`). When a run used a model or job the shipped table has no score for, it asks once at the
+end whether to share those ratings. On yes it shows exactly what will be sent (model, job, harness, month, the
+seven grades; no project data) and gives you a prefilled GitHub issue to submit yourself. Shared rows land in
+`scores/community-runs.csv` and the next release's table.
+
+**Updates:** Foreman checks for a new release at most once a day and asks before installing it. It downloads the
+release archive, checks it against the release's `SHA256SUMS`, and runs that version's installer. It never updates
+itself without your yes.
 
 It triggers on requests like "take this plan and build it", "foreman init", "orchestrate this", "run it
 overnight", "where is the work?" or "give me a test plan".
@@ -89,36 +111,42 @@ Every hand-off is one JSON line in `_coord/events/`, which is what the live view
 
 ## One core, one file per harness
 
-`SKILL.md` holds every rule and names no harness tool. Seven steps depend on the harness: starting a worker or
+`SKILL.md` holds every rule and names no harness tool. Eight steps depend on the harness: starting a worker or
 manager, waking when a job hands back, scheduled check-ins, showing you the run, taking your answers, resuming a
-manager and sending you updates, and naming models. The skill reads one file for those:
+manager and sending you updates, naming models, and the session's id. The skill reads one file for those:
 
-| File | For | How it does the seven |
+| File | For | How it does the eight |
 |---|---|---|
 | `harness/claude-code.md` | Claude Code | subagents, Monitor, scheduled check-ins, the tracker as a claude.ai Artifact you can answer on |
 | `harness/generic.md` | everything else | separate agent CLI runs, polling between steps, `live.py serve`, answers in chat or `questions.md` |
 
 On other harnesses the run moves only while a session is open. A native file for another harness (say codex) is
-one more page in `harness/` holding the same seven steps; the rules never move out of `SKILL.md`.
+one more page in `harness/` holding the same eight steps; the rules never move out of `SKILL.md`.
 
 ## Companion skills (optional)
 
-The foreman uses these when they are installed and does their job by hand when they are not. They are separate
-skills, not part of this repo.
+The foreman uses these when they are installed and a short built-in version when they are not. `companions.yaml`
+is the list (setup checks which you have):
 
-| Skill | Used for | Without it |
+| Skill | Used for | Built-in version |
 |---|---|---|
-| `subagent-discipline` | Writing briefs and grading each worker afterwards | Briefs follow `SKILL.md`; a few lines per worker in the run's `reports/` |
-| `council-judge` | Multi-model review for large gates | One strong reviewer that did not build the stage |
-| `verified-pr` | PR mechanics | Plain `gh pr create`, findings as a PR comment |
+| `delegation` | Worktrees, mailbox, stops, handback | Bundled: `references/delegation.md` + `delegation/` |
+| `subagent-discipline` | Writing briefs and grading each worker | `references/briefs.md` |
+| `council-judge`, `verified-pr` | Multi-model review for large gates; PR mechanics | `references/review.md` |
+| `keys` | Keys, accounts and spend | `references/keys.md` |
+| opencode / codex / Gemini drivers | Running those CLIs headlessly | `references/workers.md` |
 
 ## Files
 
 | Path | What it is |
 |---|---|
 | `SKILL.md` | The skill: rules, flow, red flags. This is what loads into a session. |
-| `harness/` | How the seven harness-dependent steps work in Claude Code, and everywhere else. |
+| `harness/` | How the eight harness-dependent steps work in Claude Code, and everywhere else. |
 | `install.py` | Copies the run-time files into a harness's skills folder. |
+| `setup/` | `store.py` (`~/.foreman/setup.yaml`), `detect.py` (agent CLIs, companion skills), `update.py` (release check and verified install). |
+| `hooks/` | `session_context.py` (the reminder hook), `install_hook.py` (adds it to Claude Code or Codex settings, with a backup). |
+| `scores/` | `build_scores.py` (builds the model score table from a run log) and `models.yaml` (the table setup proposes workers from). |
+| `companions.yaml`, `VERSION` | Companion skill list with fallbacks; the installed version. |
 | `defaults.yaml` | The run-sheet template. |
 | `profiles/default.yaml` | Example model routing with pre-approved fallbacks; fill in your own. |
 | `references/` | Read on demand: gates and plan shape, explore milestones, the review packet, delegation (worker setup, mailbox, stops, handback). |
@@ -140,6 +168,19 @@ python install.py selftest
 python delegation/mailbox.py selftest
 python delegation/hook.py selftest
 python delegation/prepare_worktree.py selftest
+python setup/store.py selftest; python setup/detect.py selftest; python setup/update.py selftest
+python hooks/session_context.py selftest; python hooks/install_hook.py selftest
+python scores/build_scores.py selftest
+```
+
+## Releasing
+
+Bump `VERSION`, tag, then attach the archive and its checksum to the GitHub release (the updater refuses a release
+without them):
+
+```
+git archive --prefix=foreman-<tag>/ -o foreman-<tag>.tar.gz <tag>
+sha256sum foreman-<tag>.tar.gz > SHA256SUMS
 ```
 
 ## License

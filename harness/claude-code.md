@@ -3,17 +3,22 @@
 Read this when the session runs in Claude Code. `SKILL.md` holds the rules; this file says how to do its
 harness-dependent steps with Claude Code's tools. Anything not covered here works as in `harness/generic.md`.
 
-## The seven harness steps
+## The eight harness steps
 
 | Action | In Claude Code |
 |---|---|
 | Start a worker or manager | The Agent tool (a subagent). Agent-tool subagents notify on their own when they finish, and survived every memory-pressure reap that killed background shell jobs. Workers routed to other models (opencode, codex, Gemini) still go through `track-mode/launcher.py` or those CLIs. |
 | Wake on a handback | Arm a Monitor on `_coord/events/launcher.jsonl` filtered to `handback\|hang\|quota\|failed`. It lasts at most 30 min: re-arm it every time it ends, not only at check-ins, or handbacks go unseen until the next one. |
-| Scheduled check-ins | CronCreate, every 30-60 min, created when the run starts and deleted at the end. It is the safety net behind the Monitor. Cron jobs live only as long as the session. |
+| Scheduled check-ins | CronCreate at `checkin.minutes` (default 60, or the owner's words), in every run, created when work starts and deleted when nothing is running. It is the safety net behind the Monitor. Cron jobs live only as long as the session: after a compaction or resume, check with CronList and re-create it. |
 | Show the owner the run | An Artifact: the live tracker, below. |
 | Take the owner's answers | Comments on that Artifact, read with `ArtifactComments` (they also arrive as a message to this session). |
 | Resume a manager, update the owner | A manager that ended its turn with `QUESTION <id>` is resumed by messaging that subagent (SendMessage) with the answer; if it is gone, start a new one from its track file. Owner updates are a short chat message, plus a republish of the tracker. |
-| Name models | The Agent tool takes aliases (`sonnet`, `opus`, `haiku`): write the alias in the run sheet and say it is one. Other harnesses' models are version-suffixed and checked live. |
+| Name models | The Agent tool takes aliases (`sonnet`, `opus`, `haiku`): write the alias in the run sheet and say it is one. The run log (`scores/runs.py add`) refuses an alias: give the
+full id it stands for, which this session's system prompt lists (e.g. `claude-sonnet-5-5`). Other harnesses' models are version-suffixed and checked live. |
+| This session's id | `echo $CLAUDE_CODE_SESSION_ID` in a shell tool call (set in every tool shell). Write it into `_runs/ACTIVE`. |
+
+**Setup questions** use the AskUserQuestion tool, one question per call, recommended option first. Where it is not
+available (headless `claude -p`), ask in chat as a numbered list.
 
 ## The live tracker as an Artifact (track mode, and any run with `live.py`)
 

@@ -17,10 +17,10 @@ stages; it never builds, so the rule holds. The orchestrator still runs every mi
 paths and house rules (`LOCAL.md.example` shows the shape); it overrides the generic defaults below wherever they
 differ. Without it, ask the owner and fill the run sheet per job.
 
-**Read your harness file next.** The rules in this file hold on every harness. Seven steps depend on it: starting a
+**Read your harness file next.** The rules in this file hold on every harness. Eight steps depend on it: starting a
 worker or manager, waking when a job hands back, scheduled check-ins, showing the owner the run, taking the
-owner's answers, resuming a manager and updating the owner, and naming models. In Claude Code read `harness/claude-code.md`; anywhere else read
-`harness/generic.md`. Where this file says to do one of those seven, do it the way your harness file says.
+owner's answers, resuming a manager and updating the owner, naming models, and this session's id. In Claude Code read `harness/claude-code.md`; anywhere else read
+`harness/generic.md`. Where this file says to do one of those eight, do it the way your harness file says.
 
 ## The shape
 
@@ -60,9 +60,40 @@ uncertain work: trying options, iterating on what the owner finds, bake-offs, an
 It branches off the base, grows as they test, nothing in the stack depends on it, and
 it reaches the base only on their word. Read `references/explore.md` before planning one.
 
+## `foreman setup`: once per machine
+
+Runs when `~/.foreman/setup.yaml` is missing (the first `foreman init` on a machine), when the owner says
+`foreman setup`, or when a tool it lists is gone. One question per message, the recommended answer first and marked
+"(Recommended)"; the owner accepts, picks another or types their own. Use the harness's question tool if it has one,
+else a numbered list in chat. If the owner said to take the recommended answers (or nobody can answer), take them,
+say so, and list them. The scripts below live in this skill's folder. In order:
+
+1. **Update**: `python setup/update.py check`. If it prints a question, ask it; on yes run `python setup/update.py
+   install <tag>` and say the new version loads at the next session start. Never update without the yes.
+2. **Companion skills**: `python setup/detect.py companions` lists each one from `companions.yaml`, found or not.
+   Found: use it. Missing and public: offer the install command from the registry. Missing and not public: use its
+   fallback file and say so once.
+3. **Tools**: `python setup/detect.py tools` (claude, codex, opencode, agy and their versions); the owner confirms.
+4. **Subscriptions and accounts**: which plan per tool. Each paid account gets one tiny check call, its cost stated
+   first and run only on their yes; a failed check says why (no login, no funds, wrong account).
+5. **Workers per job** (build, fix, review, plan, investigate): list models live from each tool, then propose the
+   highest-scoring one the owner has from `scores/models.yaml` (ties go to the cheaper one; review and judging always
+   get the strongest tier they have; no table or no score for a model: propose by tier and say so). Workers named in `LOCAL.md`
+   are the recommended answers instead.
+6. **Session reminder hook**: recommended yes. `python hooks/install_hook.py install claude` (and/or `codex`). It
+   puts the run folder, tracker and next step back in front of the session after a compaction or resume. For Codex,
+   walk the owner through trusting the hook once (`generic.md`).
+7. **Check-in interval**: every 60 minutes (recommended), or what they pick.
+
+Save the answers with `setup/store.py` (keys `harnesses`, `tools`, `workers`, `hook`, `checkin.minutes`) to
+`~/.foreman/setup.yaml`, one file per machine shared by every harness. Run-level defaults (merges, review levels,
+caps) stay per run in the run sheet. **Precedence:** the owner's words for this run > `LOCAL.md` > `setup.yaml` >
+`defaults.yaml`.
+
 ## `foreman init`: write the plan and the run sheet, then stop
 
-`foreman init` (or "initialize") does the setup and nothing else: read the plan, do the architect pass (next
+`foreman init` (or "initialize") does the setup and nothing else: read `~/.foreman/setup.yaml` (no file: run
+`foreman setup` first), read the plan, do the architect pass (next
 section), write the run sheet (`run-sheet.md`: the questions as prose, then `defaults.yaml` filled in for this job in a
 YAML code block, with the workers you propose),
 `_coord/plan.yaml`, `PLAN.md` + `M<n>_PLAN.md`, and the setup questions in one batch (`_coord/questions.md`), all in the
@@ -172,7 +203,7 @@ an advisor only gets to agree with you.
 Write one brief per stage. Read `references/delegation.md` for everything around the worker (its prepared
 worktree, skills and permissions per role, progress file and mailbox, testing rule from `settings.stage_gate`,
 soft and hard stop, handback files; scripts in `delegation/`). `subagent-discipline`, when installed, covers the
-brief and the post-run critique. Without the scripts (another OS), do it by hand: one worktree per stage branch (`git worktree add`, dependencies
+brief and the post-run critique; without it, `references/briefs.md`. Without the scripts (another OS), do it by hand: one worktree per stage branch (`git worktree add`, dependencies
 installed, one quick test run before the brief goes out); the worker appends a line to `_scratch/PROGRESS.md`
 after each step, reads `_scratch/MAILBOX.md` after each step (a soft stop is a line there), and writes
 `_scratch/HANDOFF.md` when it stops early. `track-mode/LAUNCHER.md` relies on the same three files. The brief carries the plan excerpt, the exact files, the acceptance check
@@ -204,6 +235,40 @@ STATUS: BLOCKED   waiting on: <stage or input>
 - **Reviewer routing lives in the run sheet**, per gate type, and may change mid-run (a reviewer is
   unavailable, or a second opinion is wanted). Change the run sheet, say so, and log it on the tracker.
 
+## Staying on track (every run)
+
+A long run outlives the session's memory: it gets compacted, resumed or restarted. Files carry the run, not memory.
+
+- **Mark the run active.** When work starts, append `<run folder> <session id>` to `_runs/ACTIVE` (the session id is a
+  harness-file step; `-` when the harness has none). The reminder hook reads it after a compaction or resume and
+  tells this session its run folder, tracker, stages and next step. Remove the line when the run ends.
+- **Check in on a schedule, in every run** (single or track staffing): create the check-in at `checkin.minutes` from
+  `setup.yaml` (default 60) when work starts, and delete it when nothing is running. The owner's words change it ("check
+  in every 10 minutes"). Arm the wake on handback too (harness file); the check-in is the safety net behind it.
+  Scheduled check-ins and wake-ups die with the session, so after any compaction or resume, re-create both.
+- **Each check-in**: read the run files (events, `git log`, worker progress files), pick up finished work and start
+  the next step, refresh the tracker, and send the owner a short update only if something changed.
+- **Never end a turn with work left and nothing to wake you.** A turn may end only when a worker is running with a
+  wake armed, a check-in is scheduled, or you are waiting for the owner's answer and said so. On a harness with no
+  scheduler and no wake (`harness/generic.md`) keep working through your own steps while work is left; when you must
+  stop, tell the owner the run is paused until a session is open again, and where it stands.
+- **Record the tracker URL in the run sheet** (`dashboard.url`) as soon as it is published.
+
+**The owner's question comes first.** When a message from the owner arrives in the same turn as a handback, a
+check-in or a notice, answer the owner's question first and in full, then deal with the rest. A turn that answers
+only the handback has ignored them.
+
+**Ask only when you need an answer.** End a message with a question only when you cannot go on without the owner's
+answer (a gate, a decision outside the standing rules). Otherwise end with what you do next. Every question the owner
+answers is a new turn that re-reads the whole conversation, which is where most of a run's cost goes. A check-in or
+wake-up with nothing new and nothing for the owner ends without a message.
+
+**Owner updates** start with what happened since your last message, then: Done · Ready for you (only what you have
+looked at yourself) · Waiting on fixes · Not ready; each waiting item in plain words with what the owner would see.
+Give an honest opinion and push back before building, not after. Unattended, decide inside the standing rules, log
+it as a `decision` event and report it later. After a crash, resume from the files without waiting to be asked.
+"Ask the advisor" means a strongest-model subagent when the harness has no advisor tool.
+
 ## The stage loop
 
 1. **Dispatch** one worker with the brief, once every stage it needs has passed its gate, into a prepared worktree
@@ -228,12 +293,20 @@ STATUS: BLOCKED   waiting on: <stage or input>
    merges into the milestone branch once its gate passes; the next stage builds on the merged milestone branch.
    When the milestone's last stage is in, run the milestone review and the test plan on the milestone branch,
    then open (or update) the milestone PR and send `milestone_ready` to the owner.
-6. **Log** the worker (`subagent-discipline` scorecard, or a few lines in `reports/`), append the hand-off events (below), and
+6. **Log** the worker (`subagent-discipline` scorecard, or the grading line from `references/briefs.md` in `reports/`),
+   add its grades to this machine's run log (`python <skill>/scores/runs.py add --model <exact id> --job
+   <build|fix|review|plan|investigate> --harness <h> --scores <seven 0-5 grades>`, order in `references/briefs.md`), append the hand-off events (below), and
    update the dashboard (below).
 
 **Events.** Every hand-off is one JSON line in the actor's own file
 `_runs/<run>/_coord/events/<actor>.jsonl` (one writer per file; the foreman writes the owner's answers into
-`owner.jsonl`; readers merge by `ts`):
+`owner.jsonl`; readers merge by `ts`). Write them with `python <skill>/track-mode/live.py log --coord _coord --actor
+<a> --kind <k> --ref <r> --summary "<s>" [--to <t>] [--artifact <path>]` (a question for the owner adds `--qid Q<n>
+--options '["<answer>", ...]' --recommended "<answer>"`; a provisional start adds `--provisional-on <ref>`), at the
+moment they happen: it stamps the
+real time (never type a time yourself, never log a past hand-off as if it were now; a late entry says "late" in its
+summary) and refreshes the tracker files. A brief is a file in `briefs/` before its `brief` event; a report is a
+file in `reports/` before its `handback` or `review` event. Fields:
 `{"ts","actor","to","kind","ref","summary","artifact"}` with `kind` one of `brief`, `handback`,
 `status`, `clarification`, `criteria_change`, `review`, `verdict`, `fix_brief`, `verify`,
 `fallback`, `hang`, `quota`, `question`, `answer`, `decision`, `staff_request`, `staff_approved`,
@@ -294,9 +367,7 @@ your harness file.
 - **Wake on handback, in any staffing.** Pick up a finished job the moment it hands back (`handback|hang|quota|failed`
   in `events/launcher.jsonl`), the way your harness file says. In one run a 30-minute check-in alone left jobs
   sitting finished for about 3 hours.
-- **Restart.** The orchestrator schedules a check-in every 30–60 min when the run
-  starts and removes it at the end, where the harness can schedule; elsewhere the check-in is the start of each of
-  your own steps (harness file). It is the safety net behind waking on handback. Each check-in reads `staffing.yaml` and the track files,
+- **Restart.** The orchestrator's check-in ("Staying on track") also reads `staffing.yaml` and the track files,
   restarts any dead or silent manager from its track file with a resume brief, and sends the owner
   the update, at most hourly (unless the profile says otherwise), the way the harness file says. A fresh orchestrator rebuilds the run from
   `_coord/`.
@@ -355,6 +426,7 @@ not write "observe the heading render" when no heading exists.
 
 - "It was a one-liner so I did it myself"
 - "'Get things done' means I can merge a milestone or push to the base branch"
+- "I offered 'merge all' and they said 'go with your recommendation', so that's a yes to merging"
 - "The worker said the tests pass"
 - "I'm treating this as obviously-yes and doing it"
 - "This is reversible, so it's fine"
@@ -382,6 +454,9 @@ not write "observe the heading render" when no heading exists.
 
 ## Standing rules
 
+- **A merge into the base branch needs the owner's words naming it** ("merge M2", "merge all into main"). "Accepted",
+  "carry on", "go ahead" or "go with your recommendation" never count, even right after you offered merging as an
+  option: accepting a milestone is not merging it. Ask once more, naming the merge, and wait.
 - **Nothing reaches the base branch (dev / main) or a milestone merge unless the owner asked.** Standing
   permissions: a worker commits to its own stage branch after each step, locally; the foreman
   pushes stage and milestone branches, opens their PRs, and merges a gated stage into its milestone branch.
@@ -420,11 +495,17 @@ not write "observe the heading render" when no heading exists.
 
 Every run ends with `postmortems/<yyyy-mm-dd>-<slug>.md` (where: `LOCAL.md`, else beside the run folders): numbers (stages GO, jobs, fix rounds, first-pass review rate, time per stage, interventions, model usage where the harness reports it, e.g. Claude Code via `track-mode/usage_split.py`), what went well, what went wrong with root cause and a proposed skill change, and how each agent behaved. Open problems from earlier post-mortems are read before the next run sheet.
 
-## Related skills — call them, do not reimplement
+**Share new ratings (one yes/no question).** At the end of the run, `python <skill>/scores/runs.py pending`. If it
+prints anything (a model or job the shipped table has no score for, or fewer than 5 runs) and `setup.yaml` does not
+say `share_ratings: never`, run `runs.py share` and ask its question as written. On yes, show the rows it will send
+and give the link; the owner submits it themselves (nothing is sent for them). Then `runs.py mark yes` (or `no`). If
+they say never, save `share_ratings: never` with `setup/store.py`. Only model, job, harness, month, Foreman version
+and the seven grades go out; never a project name, path, brief or note.
 
-`subagent-discipline` (every dispatch) ·
-`council-judge` (large gates) · `verified-pr` (PR
-mechanics) · the project's own
-test skill, which the tester **executes** rather than improvises around. If one is not installed,
-do its job by hand as this file describes (a written brief and critique, a reviewer subagent, a
-plain PR) and say which one was missing.
+## Companion skills — call them, do not reimplement
+
+`companions.yaml` lists them: what each is for, where to get it, and its built-in fallback. Installed: use it.
+Missing: read its fallback before that job and say once which skill was missing. Briefs and grading workers:
+`references/briefs.md`. Reviews and gates: `references/review.md`. Handback checks and worker CLIs:
+`references/workers.md`. Keys, accounts and spend: `references/keys.md`. The project's own test skill, when it has
+one, is **executed** by the tester rather than improvised around.

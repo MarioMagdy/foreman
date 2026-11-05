@@ -2,6 +2,8 @@
 
     python live.py build --coord <_coord dir> [--out <dir>]   # writes <dir>/run.json + tracker.html (default <coord>/live/)
     python live.py serve --coord <_coord dir> [--port 8765]   # local page; run.json is rebuilt on every read
+    python live.py log --coord <_coord dir> --actor A --kind K --ref R --summary S [--to T] [--artifact P]
+                       [--qid Q] [--state S] [--verdict V]   # one event stamped with the real time, then a build
 
 The page never changes: put tracker.html and run.json side by side (publish the built tracker.html, titled
 "<project> Foreman", as the Artifact page with `files: {"run.json": ...}`), and the page re-reads run.json every 10 s. To update
@@ -14,7 +16,7 @@ go in as written, so keep secrets out of them and read run.json before you publi
 Review packets: `build` also copies dashboard/packet.html and <coord>/packets/*.json beside run.json; `serve`
 serves them at /packet.html and /packets/<gate id>.json.
 """
-import argparse, datetime, glob, hashlib, html, http.server, json, os, re, shutil, sys
+import argparse, datetime, glob, hashlib, html, http.server, json, os, re, shutil, sys, time
 
 import yaml  # PyYAML: plan.yaml and staffing.yaml
 
@@ -477,26 +479,106 @@ def page(project):
             'content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>' + titled(project) + "</body></html>")
 
 
+def build_view(coord, out_dir=None):
+    """Write run.json, tracker.html and the review packets into out_dir (default <coord>/live/); returns run.json's path."""
+    out = os.path.join(out_dir or os.path.join(coord, "live"), "run.json")
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    st = state(coord)
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(st, f, indent=1)
+    with open(os.path.join(os.path.dirname(out), "tracker.html"), "w", encoding="utf-8") as f:
+        f.write(titled(st["meta"]["project"]))  # publish this copy, with run.json beside it
+    shutil.copy(PACKET, os.path.dirname(out))  # review packets: packet.html + packets/<gate id>.json
+    for p in glob.glob(os.path.join(coord, "packets", "*.json")):
+        os.makedirs(os.path.join(os.path.dirname(out), "packets"), exist_ok=True)
+        shutil.copy(p, os.path.join(os.path.dirname(out), "packets"))
+    return out
+
+
+# the event kinds SKILL.md lists under "Events"
+KINDS = ("brief", "handback", "status", "clarification", "criteria_change", "review", "verdict", "fix_brief", "verify",
+         "fallback", "hang", "quota", "question", "answer", "decision", "staff_request", "staff_approved", "join",
+         "milestone_ready", "milestone_accepted", "milestone_rejected", "test_dispute")
+
+
+def log_event(a):
+    """Append one event stamped with the real time (UTC, never taken from the caller), then refresh <coord>/live/."""
+    if a.kind not in KINDS:
+        print(f"unknown kind {a.kind!r}; kinds: {', '.join(KINDS)}", file=sys.stderr)
+        return 2
+    if not (a.actor and a.ref and a.summary):
+        print("log needs --actor, --kind, --ref and --summary", file=sys.stderr)
+        return 2
+    options = None
+    if a.options:
+        try:
+            options = json.loads(a.options)
+        except ValueError:
+            options = None
+        if not (isinstance(options, list) and options and all(isinstance(o, str) and o for o in options)):
+            print('--options is a JSON list of answers, e.g. \'["Keep it", "Drop it"]\'', file=sys.stderr)
+            return 2
+    if a.recommended and a.recommended not in (options or []):
+        print("--recommended must be one of --options", file=sys.stderr)
+        return 2
+    if a.artifact and not os.path.exists(a.artifact if os.path.isabs(a.artifact) else os.path.join(os.path.dirname(a.coord), a.artifact)):
+        print(f"warning: artifact not found: {a.artifact}", file=sys.stderr)
+    stamp = lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    # Readers order events by ts, to the second; two events in the same second from different actors' files could
+    # replay in the wrong order, so wait for the next second when any event already has this one.
+    # Loggers running at the same moment take turns (a lock file), so the check below sees every earlier event.
+    d = os.path.join(a.coord, "events")
+    os.makedirs(d, exist_ok=True)
+    lock, fd = os.path.join(d, ".log.lock"), None
+    for _ in range(200):
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lock) > 10:   # left behind by a logger that died
+                    os.remove(lock)
+                    continue
+            except OSError:
+                pass
+            time.sleep(0.05)
+    try:
+        stamps = set(re.findall(r'"ts":\s*"([^"]+)"', "\n".join(
+            "\n".join(read(f).splitlines()[-50:]) for f in glob.glob(os.path.join(d, "*.jsonl")))))
+        ts = stamp()
+        while ts in stamps:
+            time.sleep(0.1)
+            ts = stamp()
+        e = {"ts": ts, "actor": a.actor, "kind": a.kind, "ref": a.ref, "summary": a.summary}
+        e.update({k: v for k, v in (("to", a.to), ("artifact", a.artifact), ("qid", a.qid), ("state", a.state),
+                                    ("verdict", a.verdict), ("provisional_on", a.provisional_on), ("options", options),
+                                    ("recommended", a.recommended)) if v})
+        line = json.dumps(e, ensure_ascii=False)
+        with open(os.path.join(d, re.sub(r"[^\w.-]+", "-", a.actor) + ".jsonl"), "a", encoding="utf-8") as f:
+            f.write(line + "\n")  # one writer per file: the actor's own
+    finally:
+        if fd is not None:
+            os.close(fd)
+            os.remove(lock)
+    print(line)
+    build_view(a.coord)
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=("build", "serve"))
+    ap.add_argument("cmd", choices=("build", "serve", "log"))
     ap.add_argument("--coord", default=os.environ.get("FOREMAN_COORD"), required="FOREMAN_COORD" not in os.environ)
     ap.add_argument("--out")
     ap.add_argument("--port", type=int, default=8765)
+    for k in ("actor", "kind", "ref", "summary", "to", "artifact", "qid", "state", "verdict", "options", "recommended",
+              "provisional-on"):  # log only
+        ap.add_argument("--" + k)
     a = ap.parse_args()
     if a.cmd == "build":
-        out = os.path.join(a.out or os.path.join(a.coord, "live"), "run.json")
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        st = state(a.coord)
-        with open(out, "w", encoding="utf-8") as f:
-            json.dump(st, f, indent=1)
-        with open(os.path.join(os.path.dirname(out), "tracker.html"), "w", encoding="utf-8") as f:
-            f.write(titled(st["meta"]["project"]))  # publish this copy, with run.json beside it
-        shutil.copy(PACKET, os.path.dirname(out))  # review packets: packet.html + packets/<gate id>.json
-        for p in glob.glob(os.path.join(a.coord, "packets", "*.json")):
-            os.makedirs(os.path.join(os.path.dirname(out), "packets"), exist_ok=True)
-            shutil.copy(p, os.path.join(os.path.dirname(out), "packets"))
-        return print(out)
+        return print(build_view(a.coord, a.out))
+    if a.cmd == "log":
+        return log_event(a)
 
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):

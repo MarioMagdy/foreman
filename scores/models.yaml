@@ -1,0 +1,394 @@
+{
+  "generated": "2026-11-04",
+  "models": {
+    "claude-fable-5": {
+      "build": {
+        "latest": "2026-07-23",
+        "n": 6,
+        "score": 10.0
+      },
+      "investigate": {
+        "latest": "2026-08-20",
+        "n": 14,
+        "score": 9.5
+      },
+      "review": {
+        "latest": "2026-08-21",
+        "n": 28,
+        "score": 9.9
+      }
+    },
+    "claude-fable-5-1": {
+      "build": {
+        "latest": "2026-10-24",
+        "n": 6,
+        "score": 9.2
+      },
+      "investigate": {
+        "latest": "2026-09-21",
+        "n": 6,
+        "score": 9.7
+      }
+    },
+    "claude-haiku-5-5": {
+      "build": {
+        "latest": "2026-10-29",
+        "n": 125,
+        "score": 9.3
+      },
+      "fix": {
+        "latest": "2026-10-29",
+        "n": 90,
+        "score": 9.6
+      }
+    },
+    "claude-opus-4-7": {
+      "build": {
+        "latest": "2026-06-04",
+        "n": 12,
+        "score": 8.9
+      },
+      "review": {
+        "latest": "2026-06-04",
+        "n": 6,
+        "score": 9.7
+      }
+    },
+    "claude-opus-4-8": {
+      "build": {
+        "latest": "2026-07-28",
+        "n": 80,
+        "score": 9.7
+      },
+      "investigate": {
+        "latest": "2026-07-28",
+        "n": 17,
+        "score": 9.4
+      },
+      "review": {
+        "latest": "2026-08-29",
+        "n": 77,
+        "score": 9.8
+      }
+    },
+    "claude-opus-5": {
+      "build": {
+        "latest": "2026-09-22",
+        "n": 47,
+        "score": 9.8
+      },
+      "fix": {
+        "latest": "2026-09-22",
+        "n": 80,
+        "score": 9.9
+      },
+      "investigate": {
+        "latest": "2026-09-14",
+        "n": 5,
+        "score": 9.9
+      },
+      "review": {
+        "latest": "2026-08-20",
+        "n": 11,
+        "score": 10.0
+      }
+    },
+    "claude-opus-5-5": {
+      "build": {
+        "latest": "2026-10-30",
+        "n": 17,
+        "score": 9.6
+      },
+      "fix": {
+        "latest": "2026-10-28",
+        "n": 7,
+        "score": 9.8
+      },
+      "investigate": {
+        "latest": "2026-11-03",
+        "n": 29,
+        "score": 9.7
+      },
+      "plan": {
+        "latest": "2026-10-27",
+        "n": 12,
+        "score": 9.7
+      },
+      "review": {
+        "latest": "2026-10-30",
+        "n": 52,
+        "score": 9.8
+      }
+    },
+    "claude-sonnet-4-6": {
+      "build": {
+        "latest": "2026-07-02",
+        "n": 10,
+        "score": 9.3
+      },
+      "review": {
+        "latest": "2026-07-02",
+        "n": 7,
+        "score": 9.3
+      }
+    },
+    "claude-sonnet-5": {
+      "build": {
+        "latest": "2026-09-15",
+        "n": 40,
+        "score": 9.7
+      },
+      "fix": {
+        "latest": "2026-09-15",
+        "n": 17,
+        "score": 9.9
+      },
+      "investigate": {
+        "latest": "2026-09-16",
+        "n": 8,
+        "score": 9.2
+      }
+    },
+    "claude-sonnet-5-5": {
+      "build": {
+        "latest": "2026-10-30",
+        "n": 39,
+        "score": 9.5
+      },
+      "fix": {
+        "latest": "2026-10-29",
+        "n": 22,
+        "score": 9.5
+      },
+      "investigate": {
+        "latest": "2026-11-04",
+        "n": 16,
+        "score": 9.3
+      },
+      "review": {
+        "latest": "2026-10-30",
+        "n": 55,
+        "score": 9.8
+      }
+    },
+    "deepseek-v4-pro": {
+      "build": {
+        "latest": "2026-10-28",
+        "n": 5,
+        "score": 7.3
+      }
+    },
+    "deepseek-v4.1-flash": {
+      "build": {
+        "latest": "2026-10-19",
+        "n": 20,
+        "score": 9.1
+      },
+      "fix": {
+        "latest": "2026-10-17",
+        "n": 16,
+        "score": 9.4
+      }
+    },
+    "gemini-3.1-pro": {
+      "review": {
+        "latest": "2026-06-16",
+        "n": 17,
+        "score": 8.4
+      }
+    },
+    "gemini-3.5-flash": {
+      "build": {
+        "latest": "2026-07-30",
+        "n": 46,
+        "score": 9.3
+      },
+      "fix": {
+        "latest": "2026-07-12",
+        "n": 5,
+        "score": 9.5
+      },
+      "review": {
+        "latest": "2026-07-30",
+        "n": 11,
+        "score": 8.1
+      }
+    },
+    "gemini-3.6-flash": {
+      "review": {
+        "latest": "2026-08-21",
+        "n": 6,
+        "score": 6.7
+      }
+    },
+    "gemini-3.7-flash": {
+      "build": {
+        "latest": "2026-08-31",
+        "n": 5,
+        "score": 8.6
+      }
+    },
+    "gemini-3.8-flash": {
+      "build": {
+        "latest": "2026-10-30",
+        "n": 40,
+        "score": 8.4
+      },
+      "fix": {
+        "latest": "2026-10-30",
+        "n": 47,
+        "score": 9.4
+      }
+    },
+    "glm-5.1": {
+      "build": {
+        "latest": "2026-06-08",
+        "n": 5,
+        "score": 7.5
+      },
+      "review": {
+        "latest": "2026-06-10",
+        "n": 7,
+        "score": 9.7
+      }
+    },
+    "glm-5.2": {
+      "build": {
+        "latest": "2026-06-29",
+        "n": 7,
+        "score": 8.7
+      },
+      "review": {
+        "latest": "2026-07-23",
+        "n": 17,
+        "score": 9.7
+      }
+    },
+    "gpt-5.5": {
+      "review": {
+        "latest": "2026-07-30",
+        "n": 41,
+        "score": 9.3
+      }
+    },
+    "gpt-5.6-luna": {
+      "build": {
+        "latest": "2026-09-22",
+        "n": 21,
+        "score": 8.9
+      },
+      "fix": {
+        "latest": "2026-09-22",
+        "n": 27,
+        "score": 9.1
+      }
+    },
+    "gpt-5.6-sol": {
+      "build": {
+        "latest": "2026-09-12",
+        "n": 11,
+        "score": 9.1
+      },
+      "review": {
+        "latest": "2026-09-12",
+        "n": 23,
+        "score": 9.5
+      }
+    },
+    "gpt-5.6-terra": {
+      "build": {
+        "latest": "2026-09-13",
+        "n": 8,
+        "score": 7.5
+      },
+      "review": {
+        "latest": "2026-09-13",
+        "n": 14,
+        "score": 9.4
+      }
+    },
+    "gpt-6-astra": {
+      "review": {
+        "latest": "2026-10-18",
+        "n": 100,
+        "score": 9.9
+      }
+    },
+    "gpt-6-luna": {
+      "build": {
+        "latest": "2026-09-29",
+        "n": 13,
+        "score": 9.5
+      },
+      "fix": {
+        "latest": "2026-09-27",
+        "n": 10,
+        "score": 9.8
+      }
+    },
+    "gpt-6-sol": {
+      "build": {
+        "latest": "2026-09-27",
+        "n": 9,
+        "score": 9.4
+      },
+      "review": {
+        "latest": "2026-10-17",
+        "n": 7,
+        "score": 9.2
+      }
+    },
+    "gpt-6.1-sol": {
+      "review": {
+        "latest": "2026-10-18",
+        "n": 14,
+        "score": 9.4
+      }
+    },
+    "kimi-k3": {
+      "review": {
+        "latest": "2026-07-28",
+        "n": 10,
+        "score": 9.9
+      }
+    },
+    "mimo-v2.5-pro": {
+      "review": {
+        "latest": "2026-08-29",
+        "n": 6,
+        "score": 8.4
+      }
+    },
+    "mimo-v2.6-pro": {
+      "review": {
+        "latest": "2026-10-27",
+        "n": 67,
+        "score": 9.7
+      }
+    },
+    "minimax-m3": {
+      "build": {
+        "latest": "2026-06-29",
+        "n": 15,
+        "score": 9.7
+      },
+      "fix": {
+        "latest": "2026-07-12",
+        "n": 7,
+        "score": 9.2
+      },
+      "review": {
+        "latest": "2026-07-15",
+        "n": 30,
+        "score": 8.7
+      }
+    },
+    "qwen3.7-max": {
+      "review": {
+        "latest": "2026-06-16",
+        "n": 10,
+        "score": 9.2
+      }
+    }
+  }
+}

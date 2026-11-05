@@ -19,7 +19,8 @@ events: _runs/<run>/_coord/events/              # one JSONL file per actor, one 
 plan_data: _runs/<run>/_coord/plan.yaml         # milestones + stages (needs, builder, track) for the live view
 plan_files: [PLAN.md, M<n>_PLAN.md per milestone]   # each with a copy-paste brief per stage (SKILL.md "Plan files")
 restart:
-  check_in: every <30-60> min, created at start, removed at the end (how - your harness file)
+  check_in: every <checkin.minutes from ~/.foreman/setup.yaml, default 60> min, every run, created when work starts, removed when nothing runs (how - your harness file)
+  active_line: _runs/ACTIVE            # "<run folder> <session id>" while the run is live; the reminder hook reads it
   rebuild_from: _runs/<run>/_coord/             # tracks/<id>.md + events + staffing.yaml
 standing_orders:                                # decisions made up front, with defaults and a named decider
   - { question: <...>, default: <...>, decider: <owner | orchestrator | manager> }

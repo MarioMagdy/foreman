@@ -1,0 +1,10 @@
+[
+  {"name": "delegation", "used_for": "worktrees, mailbox, stops, handback", "source": "bundled", "fallback": "references/delegation.md"},
+  {"name": "subagent-discipline", "used_for": "writing briefs, grading workers", "source": "third-party", "fallback": "references/briefs.md"},
+  {"name": "council-judge", "used_for": "judge panels for large gates", "source": "not public yet", "fallback": "references/review.md"},
+  {"name": "verified-pr", "used_for": "PR review mechanics", "source": "not public yet", "fallback": "references/review.md"},
+  {"name": "keys", "used_for": "keys, accounts, spend", "source": "not public yet", "fallback": "references/keys.md"},
+  {"name": "opencode-as-tool", "used_for": "running opencode headlessly", "source": "not public yet", "fallback": "references/workers.md"},
+  {"name": "codex-as-tool", "used_for": "running codex headlessly", "source": "not public yet", "fallback": "references/workers.md"},
+  {"name": "gemini-as-tool", "used_for": "running Gemini (agy) headlessly", "source": "not public yet", "fallback": "references/workers.md"}
+]

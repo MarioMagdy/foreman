@@ -117,7 +117,7 @@ class Daemon:
     def env(self):
         # one skill folder for workers: without this opencode loads ~/.claude/skills AND ~/.agents/skills (every skill
         # twice, orchestration skills included); see references/delegation.md
-        e = dict(os.environ, OPENCODE_SERVER_PASSWORD=self.pw, OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1")
+        e = dict(os.environ, OPENCODE_SERVER_PASSWORD=self.pw, OPENCODE_DISABLE_CLAUDE_CODE_SKILLS="1", FOREMAN_ROLE="worker")
         if self.db:
             e["OPENCODE_DB"] = self.db
         return e
