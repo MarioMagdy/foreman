@@ -773,23 +773,56 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     $("team").textContent = `${live ? `${live} manager${live > 1 ? "s" : ""}` : "Single mode"} · ${busy}/${run.pool && run.pool.slots || "?"} worker slots busy` +
       `${queued ? ` · ${queued} queued` : ""}${run.pool && run.pool.stopped ? " · launcher stopped" : ""} ›`;
     const items = run.attention || [];
+    useDrafts();
     const warn = (run.warnings || []).map(w => ({ type: "blocked", ref: "", text: w }));
     $("attn").hidden = !items.length && !warn.length;
     const label = { blocked: "stuck", question: "question", staffing: "staff request" };
-    $("attn-list").innerHTML = warn.concat(items).map(a => a.type === "blocked" ? `<button class="a blocked" ${a.ref && findStage(a.ref) ? `data-open-ref="${esc(a.ref)}"` : 'data-act="team"'}>
+    const attnHtml = warn.concat(items).map(a => a.type === "blocked" ? `<button class="a blocked" ${a.ref && findStage(a.ref) ? `data-open-ref="${esc(a.ref)}"` : 'data-act="team"'}>
       <span class="what-a">stuck ${esc(a.ref || "")}</span><span class="txt">${esc(a.text)}</span></button>` : askRow(a, label)).join("");
+    // The 10 s refresh redraws the questions only when they changed, and keeps the box being typed in focused.
+    const list = $("attn-list");
+    if (list.dataset.drawn !== attnHtml) {
+      const ae = document.activeElement, fq = ae && ae.classList && ae.classList.contains("other") ? ae.dataset.q : null;
+      const sel = fq ? [ae.selectionStart, ae.selectionEnd] : null;
+      list.innerHTML = attnHtml; list.dataset.drawn = attnHtml;
+      const el = fq && [...list.querySelectorAll(".other")].find(e => e.dataset.q === fq);
+      if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* not a text box */ } }
+    }
     renderSend();
     renderManagers(mgrs);
   }
 
   // A question shows who raised it and every hop it took; one that now sits with the owner gets its options.
   // Picks stay in the page until "Send answers to Claude" posts them as one comment sent to the watching session.
-  const picks = {}, sent = new Set();
+  // Drafts (picks, notes, what was sent) live in this browser, so a reload or a republish of the page never loses them.
+  // They are kept per run (two runs served on the same port can both have a Q2) and dropped once the question closes.
+  let picks = {}, draftKey = null;
+  const sent = new Set();
+  const saveDrafts = () => { try { if (draftKey) localStorage.setItem(draftKey, JSON.stringify(picks)); } catch (e) { /* storage blocked: drafts last this visit */ } };
+  try { localStorage.removeItem("foreman-drafts"); } catch (e) { /* an early build kept every run under this one key */ }
+  function useDrafts() {
+    // run.id comes from live.py (one per run folder); a page without it falls back to the run's name
+    const key = "foreman-drafts:" + (run.id || (meta && meta.project || "") + "|" + (meta && meta.subtitle || ""));
+    if (key !== draftKey) {
+      draftKey = key; picks = {}; sent.clear();
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { /* unreadable: start empty */ }
+      for (const [id, p] of Object.entries(saved && typeof saved === "object" ? saved : {})) {
+        if (!p || typeof p !== "object") continue;
+        picks[id] = { v: typeof p.v === "string" ? p.v : "", other: typeof p.other === "string" ? p.other : "", sent: p.sent === true };
+        if (picks[id].sent) sent.add(id);
+      }
+    }
+    const open = new Set((run.attention || []).filter(a => a.type === "question").map(qidOf));
+    const gone = Object.keys(picks).filter(id => !open.has(id));
+    gone.forEach(id => { delete picks[id]; sent.delete(id); });
+    if (gone.length) saveDrafts();
+  }
   const qidOf = (a) => String(a.qid || a.ref || "");
   const who = (n) => n === "owner" ? "you" : n || "orchestrator";
   const route = (a) => [a.from].concat((a.chain || [{ to: a.to }]).map(h => h.to)).map(who).join(" → ");
   const forOwner = () => (run && run.attention || []).filter(a => a.type === "question" && a.to === "owner" && !sent.has(qidOf(a)));
-  const answerOf = (id) => { const p = picks[id] || {}; return (p.other || "").trim() || p.v || ""; };
+  const answerOf = (id) => { const p = picks[id] || {}, note = (p.other || "").trim(); return p.v ? (note ? `${p.v} (note: ${note})` : p.v) : note; };
   function askRow(a, label) {
     const id = qidOf(a), p = picks[id] || {}, mine = a.type === "question" && a.to === "owner";
     const head = a.ref && findStage(a.ref) ? `<button class="lnk" data-open-ref="${esc(a.ref)}">${esc(label[a.type] || a.type)} ${esc(id)}</button>` : `${esc(label[a.type] || a.type)} ${esc(id)}`;
@@ -797,7 +830,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       `<li><time>${esc(fmtTime(h.at))}</time><span><span class="rt">${esc(who(h.from))} → ${esc(who(h.to))}</span><br>${esc(h.text)}</span></li>`).join("")}</ul></details>` : "";
     const opts = !mine ? "" : sent.has(id) ? '<div class="route">Sent to Claude. It clears here once the orchestrator logs your answer.</div>'
       : `<div class="opts">${(a.options || []).map(o => `<button class="opt" data-act="pick" data-q="${esc(id)}" data-v="${esc(o)}" aria-pressed="${p.v === o}">${esc(o)}${o === a.recommended ? ' <span class="rec">recommended</span>' : ""}</button>`).join("")}
-        <input class="other" data-q="${esc(id)}" value="${esc(p.other || "")}" placeholder="${(a.options || []).length ? "or your own answer" : "your answer"}" aria-label="Your own answer to ${esc(id)}"></div>`;
+        <input class="other" data-q="${esc(id)}" value="${esc(p.other || "")}" placeholder="${(a.options || []).length ? "add a note, or write your own answer" : "your answer"}" aria-label="Your own answer to ${esc(id)}"></div>`;
     const first = (a.chain && a.chain[0] || a);
     return `<div class="a ${esc(a.type)}"><span class="what-a">${head}</span>
       <div class="txt">${esc(a.text)}<div class="route">Raised by ${esc(route(a))} · ${esc(fmtTime(first.at))}</div>${hops}${opts}</div></div>`;
@@ -806,6 +839,10 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     const qs = forOwner(), n = qs.filter(a => answerOf(qidOf(a))).length;
     $("attn-send").hidden = !qs.length;
     $("send-n").textContent = `${n} of ${qs.length} answered`;
+  }
+  function markSent(qs) {
+    qs.forEach(a => { const id = qidOf(a); sent.add(id); (picks[id] = picks[id] || {}).sent = true; });
+    saveDrafts();
   }
   async function sendAnswers(btn) {
     const qs = forOwner().filter(a => answerOf(qidOf(a)));
@@ -819,13 +856,13 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
       const can = c ? await c.canSendToClaude().catch(() => "off") : "off";
       if (can === "available") {
         await c.sendToClaude({ anchor: await c.anchorFor($("attn")), text });
-        qs.forEach(a => sent.add(qidOf(a)));
+        markSent(qs);
         btn.disabled = false; renderRun();
         return say("Sent. Claude replies in the comment thread.");
       }
       if (can === "no_session") {                 // nobody is watching right now: leave it where the next check-in reads it
         await c.create({ anchor: await c.anchorFor($("attn")), text });
-        qs.forEach(a => sent.add(qidOf(a)));
+        markSent(qs);
         btn.disabled = false; renderRun();
         return say("No Claude session is watching right now, so this was saved as a comment. The orchestrator reads it at its next check-in.");
       }
@@ -845,6 +882,7 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     const t = ev.target;
     if (!t.classList || !t.classList.contains("other")) return;
     (picks[t.dataset.q] = picks[t.dataset.q] || {}).other = t.value;
+    saveDrafts();
     renderSend();
   });
 
@@ -1253,10 +1291,9 @@ pre.file { margin: 6px 0 0; font: .76rem/1.55 var(--font-mono); white-space: pre
     if (act === "pane") { showPane(t.dataset.pane); return; }
     if (act === "pick") {
       const p = picks[t.dataset.q] = picks[t.dataset.q] || {};
-      p.v = p.v === t.dataset.v ? "" : t.dataset.v; p.other = "";
-      const box = t.parentElement;
-      box.querySelectorAll(".opt").forEach(b => b.setAttribute("aria-pressed", String(b === t && !!p.v)));
-      box.querySelector(".other").value = "";
+      p.v = p.v === t.dataset.v ? "" : t.dataset.v;      // the note stays: it goes with the pick
+      t.parentElement.querySelectorAll(".opt").forEach(b => b.setAttribute("aria-pressed", String(b === t && !!p.v)));
+      saveDrafts();
       return renderSend();
     }
     if (act === "send-answers") return sendAnswers(t);
