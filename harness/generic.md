@@ -4,7 +4,7 @@ Read this when the session is not Claude Code (codex, opencode, a Gemini CLI, an
 folders). `SKILL.md` holds the rules; this file says how to do its harness-dependent steps with plain files and
 command-line tools.
 
-## The seven harness steps
+## The eight harness steps
 
 | Action | Anywhere |
 |---|---|
@@ -15,6 +15,17 @@ command-line tools.
 | Take the owner's answers | In the chat, or by editing `_coord/questions.md`. Log one `answer` event per `qid` (actor `owner`), as on the page. |
 | Resume a manager, update the owner | A manager that ended with `QUESTION <id>` is resumed by re-running it with the answer (codex: `codex exec resume <thread id> "<answer>"`), or started fresh from its track file. Owner updates are a short chat message at the start of your steps, at most hourly. |
 | Name models | Ask the CLI what it offers (`opencode models`; for codex, probe an id with a one-line prompt) and write the exact, version-suffixed name. |
+| This session's id | None known: write `-` in `_runs/ACTIVE` (the reminder then goes to any session that starts in the repo). |
+
+**Setup questions** go in chat, one per message, as a numbered list with the recommended answer first.
+
+## The reminder hook in Codex
+
+`python <skill>/hooks/install_hook.py install codex` adds the hook to `~/.codex/hooks.json`. Codex runs a new hook
+only after the owner trusts it once: start `codex` interactively, approve the hook when asked, then start a new
+session. Until then it silently does not run. Not yet confirmed: whether Codex fires it after a compaction, and
+whether `codex exec` (headless) fires it at all; in a 0.159.1 test it did not. Treat the hook as a help, not a
+guarantee: at the start of each of your steps, read `_runs/ACTIVE` and the run sheet yourself.
 
 ## Events you write by hand
 

@@ -74,6 +74,48 @@ out = tempfile.mkdtemp()
 subprocess.run([sys.executable, os.path.join(here, "live.py"), "build", "--coord", coord, "--out", out], check=True,
                capture_output=True)
 assert os.path.isfile(os.path.join(out, "packet.html")) and os.path.isfile(os.path.join(out, "packets", "M1-G2.json"))
+# `log` writes one event stamped with the real time, refreshes live/run.json, and rejects unknown kinds
+import datetime, json  # noqa: E402
+lc = os.path.join(tempfile.mkdtemp(), "_coord")
+shutil.copytree(sample, lc)
+live_py = os.path.join(here, "live.py")
+logcmd = lambda *extra: subprocess.run([sys.executable, live_py, "log", "--coord", lc, "--actor", "foreman",
+                                        "--ref", "M1-S1", "--summary", "test", *extra], capture_output=True, text=True)
+shutil.rmtree(os.path.join(lc, "live"), ignore_errors=True)
+r = logcmd("--kind", "brief", "--to", "builder:x", "--artifact", "briefs/nope.md")
+assert r.returncode == 0, r.stderr
+assert "artifact not found" in r.stderr, r.stderr  # a missing artifact only warns
+ef = os.path.join(lc, "events", "foreman.jsonl")
+last = json.loads(open(ef, encoding="utf-8").read().splitlines()[-1])
+assert json.loads(r.stdout) == last and last["kind"] == "brief" and last["ref"] == "M1-S1" and last["to"] == "builder:x", (r.stdout, last)
+age = datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.strptime(last["ts"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+assert abs(age.total_seconds()) < 5, last["ts"]
+rj = os.path.join(lc, "live", "run.json")
+assert os.path.getmtime(rj) >= os.path.getmtime(ef) and json.load(open(rj, encoding="utf-8"))["meta"]["updated"] == last["ts"]
+n = len(open(ef, encoding="utf-8").read().splitlines())
+r = logcmd("--kind", "nonsense")
+assert r.returncode == 2 and "handback" in r.stderr, (r.returncode, r.stderr)
+assert len(open(ef, encoding="utf-8").read().splitlines()) == n  # nothing written for a bad kind
+# an owner question carries its answer buttons and the recommended one
+r = logcmd("--kind", "question", "--to", "owner", "--qid", "Q9", "--options", '["Keep it", "Drop it"]', "--recommended", "Keep it")
+assert r.returncode == 0, r.stderr
+q = json.loads(r.stdout)
+assert q["options"] == ["Keep it", "Drop it"] and q["recommended"] == "Keep it", q
+assert any(a.get("qid") == "Q9" and a.get("options") == ["Keep it", "Drop it"]
+           for a in json.load(open(rj, encoding="utf-8"))["run"]["attention"]), "options reach the tracker"
+assert logcmd("--kind", "question", "--qid", "Q8", "--options", "yes,no").returncode == 2
+# a provisional start is recorded, and two events logged back to back never share a second (readers order by ts)
+r1 = logcmd("--kind", "brief", "--provisional-on", "M1-S0")
+r2 = logcmd("--kind", "status")
+t1, t2 = json.loads(r1.stdout), json.loads(r2.stdout)
+assert t1["provisional_on"] == "M1-S0" and t2["ts"] > t1["ts"], (t1, t2)
+# loggers started at the same moment take turns: every event gets its own second, and no lock file is left
+procs = [subprocess.Popen([sys.executable, live_py, "log", "--coord", lc, "--actor", f"mgr{i}", "--ref", "M1-S1",
+                           "--kind", "status", "--summary", "same moment"], stdout=subprocess.PIPE, text=True)
+         for i in range(3)]
+same = [json.loads(p.communicate()[0])["ts"] for p in procs]
+assert len(set(same)) == 3 and not os.path.exists(os.path.join(lc, "events", ".log.lock")), same
+assert logcmd("--kind", "question", "--qid", "Q8", "--options", '["a"]', "--recommended", "b").returncode == 2
 import yaml  # noqa: E402  the shipped templates stay valid YAML
 for t in ("defaults.yaml", os.path.join("profiles", "default.yaml")):
     yaml.safe_load(open(os.path.join(here, "..", t), encoding="utf-8"))

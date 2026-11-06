@@ -82,7 +82,8 @@ def bundle(wt, harness, role, interval, maxn):
     if harness == "claude":
         cfg = {"hooks": {"PostToolUse": [{"matcher": "*", "hooks": [
             {"type": "command", "command": f"{q(py)} {q(hook)} claude {q(wt)}", "timeout": 10}]}]},
-               "permissions": {"deny": ["Bash(git push:*)", "Bash(git reset --hard:*)", "Bash(git clean:*)"]}}
+               "permissions": {"deny": ["Bash(git push:*)", "Bash(git reset --hard:*)", "Bash(git clean:*)"]},
+               "env": {"FOREMAN_ROLE": "worker"}}
         path = os.path.join(s, "claude-settings.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cfg, f, indent=1)

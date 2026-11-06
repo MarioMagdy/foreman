@@ -6,17 +6,21 @@
     python install.py --dest <dir>         # any other harness: the folder that will hold SKILL.md
     python install.py selftest
 
-Copies the run-time files only (not tests, the sample run or dev notes). Re-run to update. Never touches LOCAL.md.
+Copies the run-time files only (not tests, the sample run or dev notes). Re-run to update. Never touches LOCAL.md
+or ~/.foreman/.
 Stdlib only.
 """
 import argparse, os, shutil, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILES = [
-    "SKILL.md", "defaults.yaml", "LOCAL.md.example", "LICENSE",
+    "SKILL.md", "defaults.yaml", "LOCAL.md.example", "LICENSE", "VERSION", "companions.yaml",
     "harness/claude-code.md", "harness/generic.md",
     "profiles/default.yaml",
     "references/gates.md", "references/explore.md", "references/packet.md", "references/delegation.md",
+    "references/briefs.md", "references/review.md", "references/workers.md", "references/keys.md",
+    "setup/store.py", "setup/detect.py", "setup/update.py",
+    "hooks/session_context.py", "hooks/install_hook.py", "scores/models.yaml", "scores/runs.py", "scores/build_scores.py",
     "delegation/prepare_worktree.py", "delegation/mailbox.py", "delegation/hook.py",
     "dashboard/tracker.html", "dashboard/packet.html", "dashboard/SCHEMA.md", "dashboard/seed-example.json",
     "track-mode/CHARTER.md", "track-mode/LAUNCHER.md", "track-mode/launcher.py", "track-mode/live.py",
@@ -64,7 +68,7 @@ def main():
         import yaml  # noqa: F401
     except ImportError:
         print(f"note: live.py and plan_check.py need PyYAML: {sys.executable} -m pip install pyyaml")
-    print("Start a new session to load it. Optional: copy LOCAL.md.example to LOCAL.md there and fill it in.")
+    print("Start a new session to load it, then say `foreman setup`. Optional: copy LOCAL.md.example to LOCAL.md there.")
 
 
 if __name__ == "__main__":
